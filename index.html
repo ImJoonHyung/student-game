@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AI Character Festival — 우리반 AI 캐릭터 게임</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   AI Character Festival — 우리반 AI 캐릭터 게임
+   디자인 컨셉 : 교실 축제(운동회) 느낌
+   - 크림색 종이 배경 + 크레파스 색상 팔레트
+   - 상단 가랜드(만국기) 장식이 시그니처 요소
+   ============================================================ */
+:root{
+  --paper:#FFF8E7;        /* 종이(배경) */
+  --ink:#3D3A50;          /* 진한 글자색 */
+  --pink:#FF6B9D;         /* 크레파스 핑크 */
+  --yellow:#FFC93C;       /* 크레파스 노랑 */
+  --blue:#4DA8FF;         /* 크레파스 파랑 */
+  --green:#5FCB77;        /* 크레파스 초록 */
+  --purple:#9B7EDE;       /* 크레파스 보라 */
+  --card:#FFFFFF;
+  --shadow:0 6px 0 rgba(61,58,80,.15);
+  --radius:22px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:'Gowun Dodum',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  overflow-x:hidden;
+  /* 종이 질감 느낌의 은은한 점 패턴 */
+  background-image:radial-gradient(rgba(61,58,80,.05) 1px, transparent 1px);
+  background-size:22px 22px;
+}
+h1,h2,h3,.jua{font-family:'Jua',sans-serif;letter-spacing:.5px}
+
+/* ---------- 가랜드(만국기) : 시그니처 장식 ---------- */
+.bunting{
+  position:fixed;top:0;left:0;right:0;height:64px;
+  pointer-events:none;z-index:50;display:flex;justify-content:center;gap:6px;
+}
+.bunting::before{
+  content:"";position:absolute;top:8px;left:-5%;right:-5%;height:2px;
+  background:var(--ink);opacity:.25;transform:rotate(-.4deg);
+}
+.flag{
+  width:34px;height:44px;margin-top:9px;
+  clip-path:polygon(0 0,100% 0,50% 100%);
+  animation:sway 3.4s ease-in-out infinite;
+  transform-origin:top center;
+}
+.flag:nth-child(5n+1){background:var(--pink)}
+.flag:nth-child(5n+2){background:var(--yellow)}
+.flag:nth-child(5n+3){background:var(--blue)}
+.flag:nth-child(5n+4){background:var(--green)}
+.flag:nth-child(5n+5){background:var(--purple)}
+.flag:nth-child(2n){animation-delay:-1.7s}
+@keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@media (prefers-reduced-motion:reduce){.flag{animation:none}}
+
+/* ---------- 화면(스크린) 전환 ---------- */
+.screen{
+  display:none;min-height:100vh;padding:90px 18px 40px;
+  max-width:1100px;margin:0 auto;
+}
+.screen.active{display:block;animation:pop .35s ease}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.screen.active{animation:none}}
+
+/* ---------- 공통 버튼 ---------- */
+.btn{
+  font-family:'Jua',sans-serif;font-size:1.25rem;
+  border:3px solid var(--ink);border-radius:var(--radius);
+  padding:16px 26px;cursor:pointer;color:var(--ink);
+  background:var(--card);box-shadow:var(--shadow);
+  transition:transform .12s ease, box-shadow .12s ease;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;
+}
+.btn:hover{transform:translateY(-3px)}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(61,58,80,.15)}
+.btn:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
+.btn.pink{background:var(--pink);color:#fff}
+.btn.yellow{background:var(--yellow)}
+.btn.blue{background:var(--blue);color:#fff}
+.btn.green{background:var(--green);color:#fff}
+.btn.purple{background:var(--purple);color:#fff}
+.btn.small{font-size:1rem;padding:10px 18px;border-width:2px;border-radius:16px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+/* ---------- 첫 화면 ---------- */
+#screen-home{display:none;text-align:center}
+#screen-home.active{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px}
+.home-title{font-size:clamp(2.4rem,8vw,4.6rem);line-height:1.15}
+.home-title .accent{color:var(--pink)}
+.home-sub{
+  font-family:'Jua',sans-serif;font-size:clamp(1rem,3.5vw,1.4rem);
+  background:var(--yellow);border:3px solid var(--ink);border-radius:999px;
+  padding:8px 26px;box-shadow:var(--shadow);transform:rotate(-2deg);
+}
+.home-eyebrow{font-family:'Jua',sans-serif;color:var(--blue);font-size:1.1rem;letter-spacing:3px}
+.home-buttons{display:grid;grid-template-columns:repeat(2,minmax(150px,240px));gap:18px}
+.home-buttons .btn{font-size:1.35rem;padding:22px 10px;flex-direction:column}
+.home-buttons .btn .emoji{font-size:2rem}
+.home-count{font-family:'Jua',sans-serif;color:var(--ink);opacity:.75}
+@media (max-width:520px){.home-buttons{grid-template-columns:1fr 1fr;width:100%}}
+
+/* ---------- 공통 헤더(뒤로가기) ---------- */
+.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.top-bar h2{font-size:clamp(1.6rem,5vw,2.3rem)}
+.top-bar .spacer{flex:1}
+
+/* ---------- 카드 / 패널 ---------- */
+.panel{
+  background:var(--card);border:3px solid var(--ink);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:26px;
+}
+
+/* ---------- 업로드 폼 ---------- */
+.form-grid{display:grid;gap:16px;max-width:520px;margin:0 auto}
+.form-grid label{font-family:'Jua',sans-serif;font-size:1.05rem}
+.form-grid input[type=text]{
+  width:100%;font-family:'Gowun Dodum',sans-serif;font-size:1.05rem;
+  border:3px solid var(--ink);border-radius:14px;padding:12px 14px;background:#FFFDF6;
+}
+.form-grid input[type=text]:focus{outline:3px solid var(--blue);outline-offset:2px}
+.dropzone{
+  border:3px dashed var(--ink);border-radius:var(--radius);
+  padding:30px 16px;text-align:center;cursor:pointer;background:#FFFDF6;
+  transition:background .15s ease;
+}
+.dropzone.drag,.dropzone:hover{background:#FFF3CF}
+.dropzone .big{font-size:2.4rem}
+.upload-msg{
+  font-family:'Jua',sans-serif;text-align:center;padding:12px;border-radius:14px;display:none;
+}
+.upload-msg.ok{display:block;background:#E3F9E8;border:2px solid var(--green);color:#1E7B3A}
+.upload-msg.err{display:block;background:#FFE4EA;border:2px solid var(--pink);color:#C22B5A}
+.progress-wrap{display:none;margin-top:10px}
+.progress-bar{height:16px;border:2px solid var(--ink);border-radius:99px;overflow:hidden;background:#fff}
+.progress-fill{height:100%;width:0%;background:var(--green);transition:width .2s}
+
+/* ---------- 갤러리 ---------- */
+.canvas-holder{
+  position:relative;border:3px solid var(--ink);border-radius:var(--radius);
+  overflow:hidden;box-shadow:var(--shadow);background:#CFEBFF;height:62vh;min-height:340px;
+}
+.canvas-holder canvas{display:block;width:100%;height:100%}
+.canvas-hint{
+  position:absolute;left:50%;bottom:12px;transform:translateX(-50%);
+  background:rgba(255,255,255,.9);border:2px solid var(--ink);border-radius:999px;
+  padding:6px 16px;font-family:'Jua',sans-serif;font-size:.9rem;pointer-events:none;
+}
+.char-detail{
+  position:absolute;top:12px;left:12px;right:12px;display:none;
+  background:rgba(255,255,255,.95);border:3px solid var(--ink);border-radius:18px;
+  padding:14px 18px;box-shadow:var(--shadow);
+}
+.char-detail.show{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.char-detail img{width:72px;height:72px;border-radius:14px;border:2px solid var(--ink);background:#fff}
+.char-detail .info{flex:1;min-width:140px}
+.char-detail .info .name{font-family:'Jua',sans-serif;font-size:1.3rem}
+.char-detail .info .owner{opacity:.75}
+
+/* ---------- 게임 선택 ---------- */
+.game-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:18px}
+.game-card{
+  background:var(--card);border:3px solid var(--ink);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:22px;text-align:center;cursor:pointer;
+  transition:transform .12s ease;
+}
+.game-card:hover{transform:translateY(-4px) rotate(-1deg)}
+.game-card:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
+.game-card .icon{font-size:3rem}
+.game-card h3{font-size:1.4rem;margin:8px 0 4px}
+.game-card p{font-size:.92rem;opacity:.8}
+.game-card .tag{
+  display:inline-block;margin-top:10px;font-family:'Jua',sans-serif;font-size:.85rem;
+  border:2px solid var(--ink);border-radius:999px;padding:3px 12px;
+}
+.game-card:nth-child(1) .tag{background:var(--pink);color:#fff}
+.game-card:nth-child(2) .tag{background:var(--blue);color:#fff}
+.game-card:nth-child(3) .tag{background:var(--green);color:#fff}
+.game-card:nth-child(4) .tag{background:var(--yellow)}
+.game-card:nth-child(5) .tag{background:var(--purple);color:#fff}
+
+/* ---------- 게임 화면 공통 ---------- */
+#game-stage{position:relative}
+.game-hud{
+  position:absolute;top:12px;left:12px;right:12px;display:flex;gap:10px;
+  align-items:flex-start;pointer-events:none;z-index:5;flex-wrap:wrap;
+}
+.hud-box{
+  background:rgba(255,255,255,.94);border:3px solid var(--ink);border-radius:16px;
+  padding:8px 16px;font-family:'Jua',sans-serif;box-shadow:var(--shadow);
+}
+.hud-box.big{font-size:1.5rem}
+.game-overlay{
+  position:absolute;inset:0;display:none;z-index:10;
+  align-items:center;justify-content:center;flex-direction:column;gap:18px;
+  background:rgba(255,248,231,.88);text-align:center;padding:20px;overflow:auto;
+}
+.game-overlay.show{display:flex}
+.countdown{font-family:'Jua',sans-serif;font-size:7rem;color:var(--pink);text-shadow:4px 4px 0 rgba(61,58,80,.15)}
+.result-list{display:flex;flex-direction:column;gap:10px;max-width:420px;width:100%}
+.result-row{
+  display:flex;align-items:center;gap:12px;background:#fff;border:3px solid var(--ink);
+  border-radius:16px;padding:8px 14px;box-shadow:var(--shadow);text-align:left;
+}
+.result-row .rank{font-family:'Jua',sans-serif;font-size:1.5rem;width:52px;text-align:center}
+.result-row img{width:52px;height:52px;border-radius:12px;border:2px solid var(--ink);background:#fff}
+.result-row .who{flex:1}
+.result-row .who .cname{font-family:'Jua',sans-serif;font-size:1.15rem}
+.result-row .who .sname{font-size:.85rem;opacity:.7}
+.result-row.gold{background:#FFF3C4}
+.result-row .score{font-family:'Jua',sans-serif}
+
+/* ---------- 토너먼트 ---------- */
+.battle-hud{
+  position:absolute;left:0;right:0;top:10px;display:flex;justify-content:space-between;
+  padding:0 14px;gap:10px;z-index:5;pointer-events:none;
+}
+.fighter-card{
+  background:rgba(255,255,255,.95);border:3px solid var(--ink);border-radius:16px;
+  padding:10px 14px;width:46%;max-width:280px;box-shadow:var(--shadow);
+}
+.fighter-card .fname{font-family:'Jua',sans-serif;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp-bar{height:14px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden;margin-top:6px}
+.hp-fill{height:100%;width:100%;background:var(--green);transition:width .25s}
+.hp-fill.low{background:var(--pink)}
+.fighter-card .stats{font-size:.78rem;opacity:.8;margin-top:5px}
+.battle-log{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:5;
+  background:rgba(255,255,255,.94);border:3px solid var(--ink);border-radius:16px;
+  padding:8px 20px;font-family:'Jua',sans-serif;max-width:92%;text-align:center;
+}
+.bracket{display:flex;flex-direction:column;gap:8px;max-width:460px;width:100%;max-height:45vh;overflow:auto}
+.bracket .match{
+  display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;
+  border:2px solid var(--ink);border-radius:12px;padding:6px 12px;font-size:.95rem;
+}
+.bracket .match .w{font-family:'Jua',sans-serif;color:#1E7B3A}
+
+/* ---------- 빙고 / 캐릭터 찾기 ---------- */
+.pick-stage{display:flex;flex-direction:column;align-items:center;gap:18px}
+.pick-big{
+  width:min(300px,70vw);aspect-ratio:1;border:4px solid var(--ink);border-radius:26px;
+  background:#fff;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative;
+}
+.pick-big img{width:100%;height:100%;object-fit:contain}
+.pick-big .qmark{font-family:'Jua',sans-serif;font-size:7rem;color:var(--purple)}
+.pick-big.spin img{animation:flash .18s linear infinite}
+@keyframes flash{from{opacity:.35}to{opacity:1}}
+.pick-name{font-family:'Jua',sans-serif;font-size:1.7rem;text-align:center;min-height:2.2rem}
+.picked-strip{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:720px}
+.picked-strip img{
+  width:56px;height:56px;border-radius:12px;border:2px solid var(--ink);background:#fff;
+}
+.hint-box{
+  background:#fff;border:3px solid var(--ink);border-radius:18px;box-shadow:var(--shadow);
+  padding:16px 22px;max-width:520px;width:100%;
+}
+.hint-box li{margin-left:22px;margin-top:6px;font-size:1.05rem}
+.silhouette img{filter:brightness(0) opacity(.85)}
+.silhouette.reveal img{filter:none;transition:filter .6s}
+
+/* ---------- 관리자 ---------- */
+.admin-list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.admin-row{
+  display:flex;align-items:center;gap:12px;background:#fff;border:2px solid var(--ink);
+  border-radius:14px;padding:8px 12px;
+}
+.admin-row img{width:48px;height:48px;border-radius:10px;border:2px solid var(--ink);background:#fff}
+.admin-row .who{flex:1;min-width:0}
+.admin-row .who .cname{font-family:'Jua',sans-serif}
+.admin-row .who .sname{font-size:.82rem;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.admin-stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.stat-chip{
+  font-family:'Jua',sans-serif;background:var(--yellow);border:2px solid var(--ink);
+  border-radius:999px;padding:6px 18px;
+}
+
+/* ---------- 사운드 토글 ---------- */
+.sound-fab{
+  position:fixed;right:16px;bottom:16px;z-index:60;width:58px;height:58px;
+  border-radius:50%;border:3px solid var(--ink);background:var(--card);
+  box-shadow:var(--shadow);font-size:1.6rem;cursor:pointer;
+}
+.sound-fab:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
+
+/* ---------- 폭죽 캔버스 ---------- */
+#confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:70}
+
+/* ---------- 토스트 ---------- */
+#toast{
+  position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;font-family:'Jua',sans-serif;border-radius:999px;
+  padding:10px 24px;opacity:0;transition:all .3s;z-index:80;pointer-events:none;max-width:90vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:640px){
+  .screen{padding:78px 12px 30px}
+  .panel{padding:18px}
+  .countdown{font-size:5rem}
+  .flag{width:26px;height:34px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== 가랜드(만국기) 장식 ===================== -->
+<div class="bunting" id="bunting" aria-hidden="true"></div>
+
+<!-- ===================== ① 첫 화면 ===================== -->
+<section id="screen-home" class="screen active">
+  <div class="home-eyebrow">AI CHARACTER FESTIVAL</div>
+  <h1 class="home-title">우리반 <span class="accent">AI 캐릭터</span></h1>
+  <div class="home-sub">우리반 AI 캐릭터 게임 🎪</div>
+  <div class="home-buttons">
+    <button class="btn pink"   data-go="upload"><span class="emoji">📤</span>캐릭터 업로드</button>
+    <button class="btn blue"   data-go="games"><span class="emoji">🎮</span>게임 시작</button>
+    <button class="btn green"  data-go="gallery"><span class="emoji">🖼️</span>전체 캐릭터 보기</button>
+    <button class="btn yellow" data-go="admin"><span class="emoji">⚙️</span>관리자 설정</button>
+  </div>
+  <div class="home-count" id="home-count">아직 업로드된 캐릭터가 없어요. 첫 번째 주인공이 되어 보세요!</div>
+</section>
+
+<!-- ===================== ② 캐릭터 업로드 ===================== -->
+<section id="screen-upload" class="screen">
+  <div class="top-bar">
+    <button class="btn small" data-go="home">← 홈으로</button>
+    <h2>📤 캐릭터 업로드</h2>
+  </div>
+  <div class="panel">
+    <div class="form-grid">
+      <div>
+        <label for="in-student">이름</label>
+        <input type="text" id="in-student" placeholder="예) 김하늘" maxlength="20" autocomplete="off">
+      </div>
+      <div>
+        <label for="in-number">학번</label>
+        <input type="text" id="in-number" placeholder="예) 20305" maxlength="20" autocomplete="off" inputmode="numeric">
+      </div>
+      <div>
+        <label for="in-charname">캐릭터 이름</label>
+        <input type="text" id="in-charname" placeholder="예) 번개토끼" maxlength="20" autocomplete="off">
+      </div>
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="GLB 파일 선택">
+        <div class="big">🎁</div>
+        <div class="jua" style="font-size:1.2rem;margin:6px 0">GLB 파일을 여기에 놓거나 눌러서 선택</div>
+        <div style="opacity:.7;font-size:.9rem" id="file-label">.glb 파일만 업로드할 수 있어요 (최대 50MB)</div>
+        <input type="file" id="in-file" accept=".glb,model/gltf-binary" hidden>
+      </div>
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+      <button class="btn pink" id="btn-upload">업로드 하기 🚀</button>
+      <div class="upload-msg" id="upload-msg"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ③ 전체 캐릭터 보기 (3D 전시장) ===================== -->
+<section id="screen-gallery" class="screen">
+  <div class="top-bar">
+    <button class="btn small" data-go="home">← 홈으로</button>
+    <h2>🖼️ 캐릭터 전시장</h2>
+    <div class="spacer"></div>
+    <span class="jua" id="gallery-count"></span>
+  </div>
+  <div class="canvas-holder" id="gallery-holder">
+    <div class="char-detail" id="char-detail">
+      <img id="detail-thumb" alt="캐릭터 썸네일">
+      <div class="info">
+        <div class="name" id="detail-charname"></div>
+        <div class="owner" id="detail-owner"></div>
+      </div>
+      <button class="btn small purple" id="btn-zoom">🔍 확대보기</button>
+      <button class="btn small" id="btn-detail-close">닫기</button>
+    </div>
+    <div class="canvas-hint">드래그로 회전 · 캐릭터를 클릭해 보세요</div>
+  </div>
+</section>
+
+<!-- ===================== ④ 게임 선택 ===================== -->
+<section id="screen-games" class="screen">
+  <div class="top-bar">
+    <button class="btn small" data-go="home">← 홈으로</button>
+    <h2>🎮 어떤 게임을 할까요?</h2>
+  </div>
+  <div class="game-grid">
+    <button class="game-card" data-game="race">
+      <div class="icon">🏁</div><h3>레이싱</h3>
+      <p>출발선에서 결승선까지! 부스터를 밟으면 순위가 뒤집혀요.</p>
+      <span class="tag">스피드 대결</span>
+    </button>
+    <button class="game-card" data-game="tournament">
+      <div class="icon">⚔️</div><h3>토너먼트</h3>
+      <p>랜덤 대진표! 체력·공격·방어·행운으로 최강자를 가려요.</p>
+      <span class="tag">1:1 배틀</span>
+    </button>
+    <button class="game-card" data-game="treasure">
+      <div class="icon">💎</div><h3>보물찾기</h3>
+      <p>맵에 숨겨진 보석을 누가 더 많이 모을까요?</p>
+      <span class="tag">점수 모으기</span>
+    </button>
+    <button class="game-card" data-game="bingo">
+      <div class="icon">🎱</div><h3>빙고</h3>
+      <p>랜덤으로 뽑히는 우리반 캐릭터! 빙고판을 체크하세요.</p>
+      <span class="tag">다 함께</span>
+    </button>
+    <button class="game-card" data-game="guess">
+      <div class="icon">🕵️</div><h3>캐릭터 찾기</h3>
+      <p>힌트를 보고 어떤 캐릭터인지 맞혀 보세요.</p>
+      <span class="tag">추리 퀴즈</span>
+    </button>
+  </div>
+</section>
+
+<!-- ===================== ⑤ 게임 진행 화면 (3D 공용) ===================== -->
+<section id="screen-play" class="screen">
+  <div class="top-bar">
+    <button class="btn small" id="btn-quit-game">← 게임 선택</button>
+    <h2 id="play-title">게임</h2>
+    <div class="spacer"></div>
+    <button class="btn small yellow" id="btn-replay">🔄 다시 하기</button>
+  </div>
+  <div class="canvas-holder" id="game-stage">
+    <div class="game-hud" id="game-hud"></div>
+    <div class="battle-hud" id="battle-hud" style="display:none">
+      <div class="fighter-card" id="fighter-a">
+        <div class="fname"></div>
+        <div class="hp-bar"><div class="hp-fill"></div></div>
+        <div class="stats"></div>
+      </div>
+      <div class="fighter-card" id="fighter-b" style="text-align:right">
+        <div class="fname"></div>
+        <div class="hp-bar"><div class="hp-fill"></div></div>
+        <div class="stats"></div>
+      </div>
+    </div>
+    <div class="battle-log" id="battle-log" style="display:none"></div>
+    <div class="game-overlay" id="game-overlay"></div>
+  </div>
+</section>
+
+<!-- ===================== ⑥ 빙고 / 캐릭터 찾기 (2D) ===================== -->
+<section id="screen-pick" class="screen">
+  <div class="top-bar">
+    <button class="btn small" data-go="games">← 게임 선택</button>
+    <h2 id="pick-title">빙고</h2>
+  </div>
+  <div class="panel pick-stage" id="pick-stage"></div>
+</section>
+
+<!-- ===================== ⑦ 관리자 설정 ===================== -->
+<section id="screen-admin" class="screen">
+  <div class="top-bar">
+    <button class="btn small" data-go="home">← 홈으로</button>
+    <h2>⚙️ 관리자 설정</h2>
+  </div>
+  <div class="panel">
+    <div class="admin-stats">
+      <span class="stat-chip" id="admin-count">캐릭터 0명</span>
+      <button class="btn small green" id="btn-demo">🤖 테스트 캐릭터 5명 추가</button>
+      <button class="btn small pink" id="btn-reset">🗑️ 전체 초기화</button>
+    </div>
+    <p style="opacity:.7;font-size:.9rem">※ 모든 데이터는 브라우저 메모리에만 저장됩니다. 새로고침하면 사라져요.</p>
+    <div class="admin-list" id="admin-list"></div>
+  </div>
+</section>
+
+<!-- ===================== 공용 요소 ===================== -->
+<button class="sound-fab" id="btn-sound" aria-label="배경음악 켜기/끄기">🔇</button>
+<canvas id="confetti-canvas"></canvas>
+<div id="toast"></div>
+
+<!-- ===================== Three.js 모듈 로드 ===================== -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+/* ============================================================
+   AI Character Festival — 메인 스크립트
+   구조 (모듈화)
+   ────────────────────────────────────────────
+   1. Store      : 캐릭터 데이터 (브라우저 메모리)
+   2. Sound      : WebAudio 배경음악 / 효과음
+   3. UI         : 화면 전환, 토스트, 폭죽
+   4. ModelKit   : GLB 로드 · 정규화 · 썸네일 · 복제
+   5. Upload     : 업로드 화면 로직
+   6. Gallery    : 3D 전시장
+   7. GameHost   : 3D 게임 공용 렌더러/루프
+   8. RaceGame / TournamentGame / TreasureGame : 3D 게임
+   9. BingoGame / GuessGame : 2D 게임
+   10. Admin     : 관리자 화면
+   ============================================================ */
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+/* ============================================================
+   1. Store — 캐릭터 데이터 저장소 (메모리 전용, DB 없음)
+   ============================================================ */
+const Store = {
+  characters: [],           // {id, studentName, studentId, charName, gltf, thumbnail, hasAnim}
+  nextId: 1,
+  MAX: 40,                  // 최대 40명까지 지원
+
+  add(ch){ ch.id = this.nextId++; this.characters.push(ch); UI.refreshCounts(); },
+  remove(id){
+    this.characters = this.characters.filter(c => c.id !== id);
+    UI.refreshCounts();
+  },
+  clear(){ this.characters = []; UI.refreshCounts(); },
+  count(){ return this.characters.length; },
+  all(){ return this.characters; },
+};
+
+/* ============================================================
+   2. Sound — WebAudio 기반 (외부 음원 파일 없이 동작)
+   ============================================================ */
+const Sound = {
+  ctx: null, bgmOn: false, bgmTimer: null, bgmStep: 0,
+
+  ensure(){
+    if(!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if(this.ctx.state === 'suspended') this.ctx.resume();
+  },
+
+  /* 짧은 효과음 : 주파수 배열을 순서대로 재생 */
+  beep(freqs, dur = .12, type = 'square', vol = .18){
+    try{
+      this.ensure();
+      freqs.forEach((f, i) => {
+        const t = this.ctx.currentTime + i * dur;
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = type; o.frequency.value = f;
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(.001, t + dur);
+        o.connect(g).connect(this.ctx.destination);
+        o.start(t); o.stop(t + dur);
+      });
+    }catch(e){ /* 오디오 미지원 환경 무시 */ }
+  },
+
+  click(){  this.beep([660], .08, 'triangle'); },
+  ok(){     this.beep([523, 659, 784], .11, 'triangle'); },
+  err(){    this.beep([220, 165], .16, 'sawtooth', .12); },
+  count(){  this.beep([440], .18, 'square'); },
+  go(){     this.beep([880], .3,  'square'); },
+  boost(){  this.beep([600, 900, 1200], .07, 'sawtooth', .12); },
+  hit(){    this.beep([180], .1, 'sawtooth', .2); },
+  gem(){    this.beep([988, 1319], .09, 'triangle'); },
+  win(){    this.beep([523, 659, 784, 1047, 784, 1047], .13, 'triangle', .22); },
+  drum(){   this.beep([120, 120, 120], .1, 'sawtooth', .25); },
+
+  /* 배경음악 : 8비트 느낌의 간단한 멜로디 루프 */
+  MELODY: [523,659,784,659, 523,659,880,784, 587,698,880,698, 784,659,587,523],
+  toggleBGM(){
+    this.ensure();
+    this.bgmOn = !this.bgmOn;
+    document.getElementById('btn-sound').textContent = this.bgmOn ? '🔊' : '🔇';
+    if(this.bgmOn){
+      this.bgmStep = 0;
+      this.bgmTimer = setInterval(() => {
+        const f = this.MELODY[this.bgmStep % this.MELODY.length];
+        this.beep([f], .22, 'triangle', .06);
+        this.bgmStep++;
+      }, 260);
+    }else{
+      clearInterval(this.bgmTimer);
+    }
+  },
+};
+document.getElementById('btn-sound').addEventListener('click', () => Sound.toggleBGM());
+
+/* ============================================================
+   3. UI — 화면 전환 / 토스트 / 폭죽 / 만국기
+   ============================================================ */
+const UI = {
+  current: 'home',
+
+  show(name){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    this.current = name;
+    /* 화면을 떠날 때 3D 자원 정리 */
+    if(name !== 'gallery') Gallery.stop();
+    if(name !== 'play')    GameHost.stop();
+    if(name === 'gallery') Gallery.start();
+    if(name === 'admin')   Admin.render();
+    window.scrollTo(0, 0);
+  },
+
+  toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => t.classList.remove('show'), 2400);
+  },
+
+  refreshCounts(){
+    const n = Store.count();
+    document.getElementById('home-count').textContent =
+      n === 0 ? '아직 업로드된 캐릭터가 없어요. 첫 번째 주인공이 되어 보세요!'
+              : `지금까지 ${n}명의 캐릭터가 축제에 참가했어요! (최대 ${Store.MAX}명)`;
+    document.getElementById('admin-count').textContent = `캐릭터 ${n}명`;
+    document.getElementById('gallery-count').textContent = `${n}명 전시 중`;
+  },
+};
+
+/* 화면 이동 버튼 (data-go 속성) */
+document.querySelectorAll('[data-go]').forEach(b =>
+  b.addEventListener('click', () => { Sound.click(); UI.show(b.dataset.go); }));
+
+/* 만국기 생성 */
+(() => {
+  const holder = document.getElementById('bunting');
+  const n = Math.ceil(window.innerWidth / 40) + 4;
+  for(let i = 0; i < n; i++){
+    const f = document.createElement('div');
+    f.className = 'flag';
+    holder.appendChild(f);
+  }
+})();
+
+/* ---------- 폭죽 (Canvas 2D 파티클) ---------- */
+const Confetti = {
+  canvas: document.getElementById('confetti-canvas'),
+  parts: [], running: false,
+  COLORS: ['#FF6B9D','#FFC93C','#4DA8FF','#5FCB77','#9B7EDE','#FF8A5C'],
+
+  burst(count = 140){
+    const c = this.canvas;
+    c.width = innerWidth; c.height = innerHeight;
+    for(let i = 0; i < count; i++){
+      this.parts.push({
+        x: innerWidth / 2 + (Math.random() - .5) * innerWidth * .5,
+        y: innerHeight * .25 + Math.random() * 60,
+        vx: (Math.random() - .5) * 9,
+        vy: -Math.random() * 7 - 2,
+        s: 5 + Math.random() * 7,
+        r: Math.random() * Math.PI,
+        vr: (Math.random() - .5) * .3,
+        col: this.COLORS[(Math.random() * this.COLORS.length) | 0],
+      });
+    }
+    if(!this.running){ this.running = true; this.loop(); }
+  },
+
+  loop(){
+    const ctx = this.canvas.getContext('2d');
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.parts.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += .18; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.col;
+      ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .6);
+      ctx.restore();
+    });
+    this.parts = this.parts.filter(p => p.y < this.canvas.height + 40);
+    if(this.parts.length){ requestAnimationFrame(() => this.loop()); }
+    else { this.running = false; ctx.clearRect(0,0,this.canvas.width,this.canvas.height); }
+  },
+};
+
+/* ============================================================
+   4. ModelKit — GLB 로드 · 자동 정규화 · 썸네일 · 복제
+   ============================================================ */
+const ModelKit = {
+  loader: new GLTFLoader(),
+  TARGET_HEIGHT: 1.6,   // 모든 캐릭터를 같은 키(1.6유닛)로 통일
+
+  /* File 객체에서 GLB 로드 */
+  loadFile(file){
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      this.loader.load(url,
+        gltf => { URL.revokeObjectURL(url); resolve(gltf); },
+        undefined,
+        err  => { URL.revokeObjectURL(url); reject(err); });
+    });
+  },
+
+  /* ---- 자동 정규화 ----
+     · 크기를 동일하게 (너무 크면 축소, 작으면 확대)
+     · 바닥(y=0)에 정확히 위치
+     · 중심을 원점에 정렬, 앞(카메라 쪽)을 보도록 회전 보정 */
+  normalize(root){
+    const wrap = new THREE.Group();
+    wrap.add(root);
+
+    /* 1) 원본 크기 측정 */
+    let box = new THREE.Box3().setFromObject(root);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+
+    /* 2) 키(높이) 기준으로 스케일 통일 — 높이가 0에 가까우면 최대 치수 기준 */
+    const basis = size.y > maxDim * .2 ? size.y : maxDim;
+    const scale = this.TARGET_HEIGHT / basis;
+    root.scale.setScalar(scale);
+
+    /* 3) 다시 측정해서 중심을 원점, 바닥을 y=0 으로 */
+    box = new THREE.Box3().setFromObject(root);
+    const center = box.getCenter(new THREE.Vector3());
+    root.position.x -= center.x;
+    root.position.z -= center.z;
+    root.position.y -= box.min.y;
+
+    /* 4) 앞을 바라보도록 : glTF 표준은 +Z가 정면 →
+          카메라(+Z 방향)에서 얼굴이 보이게 그대로 두고,
+          게임에서는 이동 방향으로 회전시켜 사용 */
+    return wrap;
+  },
+
+  /* 게임/전시에서 사용할 복제본 생성 (스킨 메시 안전 복제) */
+  instance(ch){
+    const clone = SkeletonUtils.clone(ch.gltf.scene);
+    const wrap = this.normalize(clone);
+    let mixer = null;
+    if(ch.gltf.animations && ch.gltf.animations.length){
+      mixer = new THREE.AnimationMixer(clone);
+      mixer.clipAction(ch.gltf.animations[0]).play();  // 첫 번째 애니메이션 자동 재생
+    }
+    return { obj: wrap, mixer };
+  },
+
+  /* 썸네일 생성 : 오프스크린 렌더러로 1회 렌더 → dataURL
+     (WebGL 컨텍스트는 1개만 만들어 재사용 — 40명 업로드에도 안전) */
+  _thumbRenderer: null,
+  makeThumbnail(gltfScene){
+    const W = 256, H = 256;
+    if(!this._thumbRenderer){
+      this._thumbRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      this._thumbRenderer.setSize(W, H);
+    }
+    const renderer = this._thumbRenderer;
+    const scene = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(40, 1, .1, 100);
+
+    const clone = SkeletonUtils.clone(gltfScene);
+    const wrap = this.normalize(clone);
+    scene.add(wrap);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+    dir.position.set(2, 4, 3);
+    scene.add(dir);
+
+    const h = this.TARGET_HEIGHT;
+    cam.position.set(0, h * .6, h * 1.7);
+    cam.lookAt(0, h * .5, 0);
+    renderer.render(scene, cam);
+    return renderer.domElement.toDataURL('image/png');   // 렌더러는 재사용하므로 dispose 하지 않음
+  },
+
+  /* 테스트용 캐릭터 : GLB 없이 도형으로 만든 로봇 */
+  makeDemoGLTF(colorHex){
+    const g = new THREE.Group();
+    const mat  = new THREE.MeshStandardMaterial({ color: colorHex, roughness: .5 });
+    const matD = new THREE.MeshStandardMaterial({ color: 0x3D3A50, roughness: .6 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(.35, .5, 6, 14), mat);
+    body.position.y = .8; g.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.3, 18, 14), mat);
+    head.position.y = 1.5; g.add(head);
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(.06, 8, 8), matD);
+    eyeL.position.set(-.11, 1.55, .26); g.add(eyeL);
+    const eyeR = eyeL.clone(); eyeR.position.x = .11; g.add(eyeR);
+    const footL = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), matD);
+    footL.position.set(-.18, .12, 0); g.add(footL);
+    const footR = footL.clone(); footR.position.x = .18; g.add(footR);
+    return { scene: g, animations: [] };
+  },
+};
+
+/* ============================================================
+   5. Upload — 캐릭터 업로드 화면
+   ============================================================ */
+const Upload = {
+  file: null,
+
+  init(){
+    const dz = document.getElementById('dropzone');
+    const input = document.getElementById('in-file');
+
+    dz.addEventListener('click', () => input.click());
+    dz.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' ') input.click(); });
+    input.addEventListener('change', () => this.setFile(input.files[0]));
+
+    /* 드래그 앤 드롭 */
+    ['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+    dz.addEventListener('drop', e => this.setFile(e.dataTransfer.files[0]));
+
+    document.getElementById('btn-upload').addEventListener('click', () => this.submit());
+  },
+
+  setFile(f){
+    if(!f) return;
+    this.file = f;
+    document.getElementById('file-label').textContent = `선택된 파일 : ${f.name} (${(f.size/1024/1024).toFixed(1)}MB)`;
+  },
+
+  msg(text, ok){
+    const m = document.getElementById('upload-msg');
+    m.textContent = text;
+    m.className = 'upload-msg ' + (ok ? 'ok' : 'err');
+  },
+
+  async submit(){
+    const sName = document.getElementById('in-student').value.trim();
+    const sNum  = document.getElementById('in-number').value.trim();
+    const cName = document.getElementById('in-charname').value.trim();
+
+    /* ---- 입력 검증 ---- */
+    if(!sName || !sNum || !cName) return this.msg('이름, 학번, 캐릭터 이름을 모두 입력해 주세요.', false), Sound.err();
+    if(!this.file)                return this.msg('GLB 파일을 선택해 주세요.', false), Sound.err();
+    if(!/\.glb$/i.test(this.file.name)) return this.msg('파일이 잘못되었습니다. (.glb 파일만 가능해요)', false), Sound.err();
+    if(this.file.size > 50 * 1024 * 1024) return this.msg('파일이 너무 커요. 50MB 이하로 줄여 주세요.', false), Sound.err();
+    if(Store.count() >= Store.MAX) return this.msg(`최대 ${Store.MAX}명까지만 참가할 수 있어요.`, false), Sound.err();
+
+    /* ---- 진행 표시 ---- */
+    const btn = document.getElementById('btn-upload');
+    const pw  = document.getElementById('progress-wrap');
+    const pf  = document.getElementById('progress-fill');
+    btn.disabled = true; pw.style.display = 'block'; pf.style.width = '30%';
+    this.msg('캐릭터를 불러오는 중이에요…', true);
+
+    try{
+      const gltf = await ModelKit.loadFile(this.file);   // GLB 파싱
+      pf.style.width = '70%';
+      const thumbnail = ModelKit.makeThumbnail(gltf.scene);  // 썸네일 생성
+      pf.style.width = '100%';
+
+      Store.add({
+        studentName: sName, studentId: sNum, charName: cName,
+        gltf, thumbnail,
+        hasAnim: !!(gltf.animations && gltf.animations.length),
+      });
+
+      Sound.ok(); Confetti.burst(80);
+      this.msg(`업로드 완료! 「${cName}」 캐릭터가 축제에 참가했어요 🎉`, true);
+      UI.toast(`${sName} 학생의 캐릭터가 추가되었어요!`);
+
+      /* 폼 초기화 */
+      this.file = null;
+      document.getElementById('in-file').value = '';
+      document.getElementById('in-charname').value = '';
+      document.getElementById('file-label').textContent = '.glb 파일만 업로드할 수 있어요 (최대 50MB)';
+    }catch(err){
+      console.error(err);
+      Sound.err();
+      this.msg('파일이 잘못되었습니다. GLB 파일을 다시 확인해 주세요.', false);
+    }finally{
+      btn.disabled = false;
+      setTimeout(() => { pw.style.display = 'none'; pf.style.width = '0%'; }, 600);
+    }
+  },
+};
+Upload.init();
+
+/* ============================================================
+   6. Gallery — 3D 캐릭터 전시장 (격자 배치 + 클릭 상세)
+   ============================================================ */
+const Gallery = {
+  renderer:null, scene:null, camera:null, controls:null,
+  raycaster:new THREE.Raycaster(), pointer:new THREE.Vector2(),
+  running:false, mixers:[], clock:new THREE.Clock(),
+  pickables:[], zoomTarget:null,
+
+  start(){
+    const holder = document.getElementById('gallery-holder');
+    if(!this.renderer){
+      this.renderer = new THREE.WebGLRenderer({ antialias:true });
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      holder.insertBefore(this.renderer.domElement, holder.firstChild);
+      this.renderer.domElement.addEventListener('pointerdown', e => this.onTap(e));
+      window.addEventListener('resize', () => this.resize());
+    }
+    this.buildScene();
+    this.resize();
+    this.running = true;
+    this.clock.start();
+    this.loop();
+  },
+
+  stop(){
+    this.running = false;
+    document.getElementById('char-detail').classList.remove('show');
+  },
+
+  resize(){
+    if(!this.renderer || UI.current !== 'gallery') return;
+    const holder = document.getElementById('gallery-holder');
+    const w = holder.clientWidth, h = holder.clientHeight;
+    this.renderer.setSize(w, h);
+    if(this.camera){ this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
+  },
+
+  buildScene(){
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0xCFEBFF);   // 하늘색
+    this.scene.fog = new THREE.Fog(0xCFEBFF, 18, 46);
+    this.mixers = []; this.pickables = []; this.zoomTarget = null;
+
+    /* 조명 */
+    this.scene.add(new THREE.AmbientLight(0xffffff, .9));
+    const sun = new THREE.DirectionalLight(0xfff4d6, 1.5);
+    sun.position.set(6, 10, 6);
+    this.scene.add(sun);
+
+    /* 바닥 : 밝은 잔디 느낌 */
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(30, 48),
+      new THREE.MeshStandardMaterial({ color: 0xBDE8B0, roughness: 1 }));
+    floor.rotation.x = -Math.PI / 2;
+    this.scene.add(floor);
+
+    /* 캐릭터 격자 배치 */
+    const chars = Store.all();
+    const cols = Math.max(1, Math.ceil(Math.sqrt(chars.length)));
+    const gap = 2.6;
+    chars.forEach((ch, i) => {
+      const { obj, mixer } = ModelKit.instance(ch);
+      const r = Math.floor(i / cols), c = i % cols;
+      obj.position.set((c - (cols - 1) / 2) * gap, 0, (r - Math.floor((chars.length-1)/cols) / 2) * gap);
+      obj.userData.charId = ch.id;
+      this.scene.add(obj);
+      this.pickables.push(obj);
+      if(mixer) this.mixers.push(mixer);
+
+      /* 받침대 */
+      const pad = new THREE.Mesh(
+        new THREE.CylinderGeometry(.85, .95, .1, 24),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .8 }));
+      pad.position.set(obj.position.x, .05, obj.position.z);
+      this.scene.add(pad);
+    });
+
+    /* 카메라 & 컨트롤 */
+    const holder = document.getElementById('gallery-holder');
+    this.camera = new THREE.PerspectiveCamera(50, holder.clientWidth / holder.clientHeight, .1, 100);
+    const span = cols * gap;
+    this.camera.position.set(0, span * .6 + 2.5, span * .9 + 4.5);
+    if(this.controls) this.controls.dispose();
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.target.set(0, 1, 0);
+    this.controls.maxPolarAngle = Math.PI * .49;
+    this.controls.enableDamping = true;
+  },
+
+  /* 캐릭터 클릭 → 상세 카드 */
+  onTap(e){
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const hits = this.raycaster.intersectObjects(this.pickables, true);
+    if(!hits.length) return;
+
+    let obj = hits[0].object;
+    while(obj && obj.userData.charId === undefined) obj = obj.parent;
+    if(!obj) return;
+    const ch = Store.all().find(c => c.id === obj.userData.charId);
+    if(!ch) return;
+
+    Sound.click();
+    document.getElementById('detail-thumb').src = ch.thumbnail;
+    document.getElementById('detail-charname').textContent = ch.charName;
+    document.getElementById('detail-owner').textContent = `${ch.studentName} (${ch.studentId})`;
+    document.getElementById('char-detail').classList.add('show');
+    this.zoomTarget = obj;
+  },
+
+  /* 확대보기 : 선택 캐릭터 앞으로 카메라 이동 */
+  zoom(){
+    if(!this.zoomTarget) return;
+    const p = this.zoomTarget.position;
+    this.controls.target.set(p.x, 1, p.z);
+    this.camera.position.set(p.x, 1.6, p.z + 3.2);
+    Sound.ok();
+  },
+
+  loop(){
+    if(!this.running) return;
+    requestAnimationFrame(() => this.loop());
+    const dt = this.clock.getDelta();
+    this.mixers.forEach(m => m.update(dt));
+    /* 애니메이션 없는 모델도 살짝 흔들려 보이도록 회전 */
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  },
+};
+document.getElementById('btn-zoom').addEventListener('click', () => Gallery.zoom());
+document.getElementById('btn-detail-close').addEventListener('click', () => {
+  document.getElementById('char-detail').classList.remove('show');
+});
+
+/* ============================================================
+   7. GameHost — 3D 게임 공용 렌더러 / 루프 / HUD / 오버레이
+   ============================================================ */
+const GameHost = {
+  renderer:null, scene:null, camera:null, clock:new THREE.Clock(),
+  running:false, game:null, mixers:[],
+
+  ensure(){
+    if(this.renderer) return;
+    const stage = document.getElementById('game-stage');
+    this.renderer = new THREE.WebGLRenderer({ antialias:true });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.insertBefore(this.renderer.domElement, stage.firstChild);
+    window.addEventListener('resize', () => this.resize());
+  },
+
+  resize(){
+    if(!this.renderer || UI.current !== 'play') return;
+    const stage = document.getElementById('game-stage');
+    this.renderer.setSize(stage.clientWidth, stage.clientHeight);
+    if(this.camera){
+      this.camera.aspect = stage.clientWidth / stage.clientHeight;
+      this.camera.updateProjectionMatrix();
+    }
+  },
+
+  /* 새 게임 시작 */
+  launch(game, title){
+    this.ensure();
+    this.stop();
+    UI.show('play');
+    document.getElementById('play-title').textContent = title;
+    this.hud('');
+    this.overlay(null);
+    document.getElementById('battle-hud').style.display = 'none';
+    document.getElementById('battle-log').style.display = 'none';
+
+    this.scene = new THREE.Scene();
+    this.mixers = [];
+    this.game = game;
+    game.setup(this);
+    this.resize();
+    this.running = true;
+    this.clock.start();
+    this.loop();
+  },
+
+  stop(){
+    this.running = false;
+    if(this.game && this.game.dispose) this.game.dispose();
+    this.game = null;
+  },
+
+  loop(){
+    if(!this.running) return;
+    requestAnimationFrame(() => this.loop());
+    const dt = Math.min(this.clock.getDelta(), .05);
+    this.mixers.forEach(m => m.update(dt));
+    if(this.game && this.game.update) this.game.update(dt);
+    if(this.scene && this.camera) this.renderer.render(this.scene, this.camera);
+  },
+
+  /* HUD 상단 문구 */
+  hud(html){ document.getElementById('game-hud').innerHTML = html; },
+
+  /* 중앙 오버레이 (null 이면 숨김) */
+  overlay(html){
+    const o = document.getElementById('game-overlay');
+    if(html === null){ o.classList.remove('show'); o.innerHTML = ''; }
+    else { o.innerHTML = html; o.classList.add('show'); }
+  },
+
+  /* 참가자 목록 (인원 자동 조절 : 업로드된 수만큼, 최대 40명) */
+  participants(min = 2){
+    const list = Store.all().slice(0, Store.MAX);
+    if(list.length < min){
+      UI.toast(`이 게임은 캐릭터가 ${min}명 이상 필요해요. 먼저 업로드해 주세요!`);
+      Sound.err();
+      return null;
+    }
+    return list;
+  },
+
+  /* 결과 리스트 HTML 생성 */
+  resultHTML(title, rows){
+    return `<h2 style="font-size:2rem">${title}</h2>
+      <div class="result-list">${rows.map((r, i) => `
+        <div class="result-row ${i === 0 ? 'gold' : ''}">
+          <div class="rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1) + '위'}</div>
+          <img src="${r.ch.thumbnail}" alt="">
+          <div class="who">
+            <div class="cname">${esc(r.ch.charName)}</div>
+            <div class="sname">${esc(r.ch.studentName)} (${esc(r.ch.studentId)})</div>
+          </div>
+          ${r.score !== undefined ? `<div class="score">${r.score}</div>` : ''}
+        </div>`).join('')}
+      </div>
+      <button class="btn pink" onclick="window.__replay()">🔄 다시 하기</button>`;
+  },
+
+  /* 공용 : 밝은 야외 조명 + 하늘 */
+  addDaylight(scene, sky = 0xCFEBFF){
+    scene.background = new THREE.Color(sky);
+    scene.fog = new THREE.Fog(sky, 30, 90);
+    scene.add(new THREE.AmbientLight(0xffffff, .95));
+    const sun = new THREE.DirectionalLight(0xfff4d6, 1.5);
+    sun.position.set(8, 14, 6);
+    scene.add(sun);
+  },
+};
+
+/* HTML 이스케이프 (학생 입력 표시용) */
+function esc(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* 다시하기 / 나가기 버튼 */
+let currentGameKey = null;
+window.__replay = () => { Sound.click(); startGame(currentGameKey); };
+document.getElementById('btn-replay').addEventListener('click', window.__replay);
+document.getElementById('btn-quit-game').addEventListener('click', () => { Sound.click(); UI.show('games'); });
+
+/* ============================================================
+   8-1. RaceGame — 레이싱 (카운트다운 → 랜덤 속도 + 부스터 → 순위)
+   ============================================================ */
+const RaceGame = {
+  TRACK: 60,          // 결승선까지 거리
+  racers: [], state: 'ready', finished: [], boosters: [],
+
+  setup(host){
+    this.host = host;
+    const chars = host.participants(2);
+    if(!chars){ UI.show('games'); return; }
+
+    const scene = host.scene;
+    host.addDaylight(scene, 0xBEE7FF);
+
+    /* ---- 트랙 : 인원수에 따라 레인 자동 생성 (10/20/30/40명 대응) ---- */
+    const laneW = chars.length > 24 ? 1.6 : 2.2;
+    const width = chars.length * laneW;
+    const road = new THREE.Mesh(
+      new THREE.PlaneGeometry(width + 6, this.TRACK + 24),
+      new THREE.MeshStandardMaterial({ color: 0xE8C79A, roughness: 1 }));   // 운동장 트랙 색
+    road.rotation.x = -Math.PI / 2;
+    road.position.z = -this.TRACK / 2;
+    scene.add(road);
+
+    /* 잔디 배경 */
+    const grass = new THREE.Mesh(
+      new THREE.PlaneGeometry(width + 80, this.TRACK + 100),
+      new THREE.MeshStandardMaterial({ color: 0xA9DC92, roughness: 1 }));
+    grass.rotation.x = -Math.PI / 2;
+    grass.position.set(0, -.01, -this.TRACK / 2);
+    scene.add(grass);
+
+    /* 레인 구분선 */
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    for(let i = 0; i <= chars.length; i++){
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(.08, this.TRACK + 10), lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set((i - chars.length / 2) * laneW, .01, -this.TRACK / 2);
+      scene.add(line);
+    }
+
+    /* 출발선 / 결승선 (체크무늬 느낌의 띠) */
+    [0, -this.TRACK].forEach(z => {
+      const band = new THREE.Mesh(new THREE.PlaneGeometry(width + 4, .8),
+        new THREE.MeshBasicMaterial({ color: z === 0 ? 0xffffff : 0x3D3A50 }));
+      band.rotation.x = -Math.PI / 2;
+      band.position.set(0, .02, z);
+      scene.add(band);
+    });
+
+    /* ---- 부스터 패드 (중간 부스터) ---- */
+    this.boosters = [];
+    const boostMat = new THREE.MeshStandardMaterial({ color: 0xFFC93C, emissive: 0xFF9F1C, emissiveIntensity: .6 });
+    for(let i = 0; i < Math.max(4, chars.length / 3); i++){
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(.6, .6, .06, 16), boostMat);
+      const lane = (Math.random() * chars.length) | 0;
+      pad.position.set((lane - chars.length / 2 + .5) * laneW, .03,
+                       -(10 + Math.random() * (this.TRACK - 20)));
+      pad.userData.lane = lane;
+      scene.add(pad);
+      this.boosters.push(pad);
+    }
+
+    /* ---- 레이서 배치 ---- */
+    this.racers = chars.map((ch, i) => {
+      const { obj, mixer } = ModelKit.instance(ch);
+      obj.position.set((i - chars.length / 2 + .5) * laneW, 0, 0);
+      obj.rotation.y = Math.PI;              // 결승선(-Z) 방향을 바라보게
+      scene.add(obj);
+      if(mixer) host.mixers.push(mixer);
+      return { ch, obj, lane: i, z: 0,
+               speed: 0, base: 4 + Math.random() * 3,   // 랜덤 기본 속도
+               boostT: 0, done: false, bob: Math.random() * 6 };
+    });
+
+    /* 카메라 : 트랙을 비스듬히 내려다보기 (출발선이 보이도록 초기 위치 지정) */
+    const stage = document.getElementById('game-stage');
+    host.camera = new THREE.PerspectiveCamera(55, stage.clientWidth / stage.clientHeight, .1, 200);
+    host.camera.position.set(0, 6 + width * .12, 14);
+    host.camera.lookAt(0, 0, -6);
+
+    this.state = 'countdown';
+    this.finished = [];
+    this.count = 3; this.countT = 0;
+    host.hud(`<div class="hud-box">🏁 참가 ${chars.length}명</div>`);
+    host.overlay(`<div class="countdown">3</div>`);
+    Sound.count();
+  },
+
+  update(dt){
+    const host = this.host;
+
+    /* ---- 카운트다운 ---- */
+    if(this.state === 'countdown'){
+      this.countT += dt;
+      if(this.countT >= 1){
+        this.countT = 0; this.count--;
+        if(this.count > 0){ host.overlay(`<div class="countdown">${this.count}</div>`); Sound.count(); }
+        else if(this.count === 0){ host.overlay(`<div class="countdown" style="color:var(--green)">출발!</div>`); Sound.go(); }
+        else { host.overlay(null); this.state = 'race'; }
+      }
+    }
+
+    /* ---- 레이스 진행 ---- */
+    if(this.state === 'race' || this.state === 'finish'){
+      this.racers.forEach(r => {
+        if(r.done) { return; }
+        /* 랜덤하게 흔들리는 속도 + 부스터 */
+        r.speed = r.base + Math.sin(performance.now() / 400 + r.lane) * 1.2 + Math.random() * .6;
+        if(r.boostT > 0){ r.speed += 7; r.boostT -= dt; }
+        r.z -= r.speed * dt;
+        r.obj.position.z = r.z;
+        r.obj.position.y = Math.abs(Math.sin(performance.now() / 90 + r.bob)) * .12;  // 달리는 통통 효과
+
+        /* 부스터 패드 충돌 */
+        this.boosters.forEach(b => {
+          if(b.userData.lane === r.lane && Math.abs(b.position.z - r.z) < .7 && !b.userData.used){
+            b.userData.used = true; b.visible = false;
+            r.boostT = 1.2; Sound.boost();
+            UI.toast(`⚡ ${r.ch.charName} 부스터 발동!`);
+          }
+        });
+
+        /* 결승선 통과 */
+        if(r.z <= -this.TRACK){
+          r.done = true;
+          this.finished.push(r);
+          if(this.finished.length === 1){ Sound.win(); Confetti.burst(160); }
+          else Sound.ok();
+        }
+      });
+
+      /* 카메라 : 선두를 따라가기 */
+      const leadZ = Math.min(...this.racers.map(r => r.z));
+      const spread = this.racers.length * (this.racers.length > 24 ? 1.6 : 2.2);
+      host.camera.position.lerp(new THREE.Vector3(0, 6 + spread * .12, leadZ + 14), .06);
+      host.camera.lookAt(0, 0, leadZ - 4);
+
+      /* 순위 HUD */
+      const order = [...this.racers].sort((a, b) => a.z - b.z);
+      host.hud(`<div class="hud-box big">🥇 ${esc(order[0].ch.charName)}</div>
+                <div class="hud-box">도착 ${this.finished.length} / ${this.racers.length}</div>`);
+
+      /* 전원 도착 → 결과 */
+      if(this.finished.length === this.racers.length && this.state !== 'end'){
+        this.state = 'end';
+        setTimeout(() => {
+          host.overlay(host.resultHTML('🏁 레이싱 결과',
+            this.finished.map(r => ({ ch: r.ch }))));
+        }, 700);
+      }
+    }
+  },
+
+  dispose(){ this.racers = []; this.boosters = []; },
+};
+
+/* ============================================================
+   8-2. TournamentGame — 토너먼트 (랜덤 대진 → 자동 전투 → 우승)
+   ============================================================ */
+const TournamentGame = {
+  setup(host){
+    this.host = host;
+    const chars = host.participants(2);
+    if(!chars){ UI.show('games'); return; }
+
+    /* ---- 경기장 ---- */
+    const scene = host.scene;
+    host.addDaylight(scene, 0xFFE3EC);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.4, .3, 40),
+      new THREE.MeshStandardMaterial({ color: 0xFFF3C4, roughness: .9 }));
+    scene.add(ring);
+    const edge = new THREE.Mesh(new THREE.TorusGeometry(6, .12, 10, 40),
+      new THREE.MeshStandardMaterial({ color: 0xFF6B9D }));
+    edge.rotation.x = Math.PI / 2; edge.position.y = .17;
+    scene.add(edge);
+    const grass = new THREE.Mesh(new THREE.PlaneGeometry(80, 80),
+      new THREE.MeshStandardMaterial({ color: 0xA9DC92 }));
+    grass.rotation.x = -Math.PI / 2; grass.position.y = -.05;
+    scene.add(grass);
+
+    const stage = document.getElementById('game-stage');
+    host.camera = new THREE.PerspectiveCamera(50, stage.clientWidth / stage.clientHeight, .1, 100);
+    host.camera.position.set(0, 5.5, 11);
+    host.camera.lookAt(0, 1, 0);
+
+    /* ---- 대진표 : 셔플 후 2명씩, 홀수면 부전승 ---- */
+    this.queue = [...chars].sort(() => Math.random() - .5)
+      .map(ch => ({ ch,
+        hp: 80 + (Math.random() * 60 | 0),        // 체력
+        atk: 8 + (Math.random() * 12 | 0),        // 공격력
+        def: (Math.random() * 6 | 0),             // 방어력
+        luck: (Math.random() * 30 | 0),           // 행운(크리티컬 %)
+      }));
+    this.matchLog = [];
+    this.state = 'idle';
+    this.nextMatch();
+  },
+
+  /* 다음 경기 준비 */
+  nextMatch(){
+    const host = this.host;
+    /* 현재 라운드에서 이긴 캐릭터는 winners 로 이동 */
+    if(!this.winners) this.winners = [];
+
+    if(this.queue.length === 0){          // 라운드 종료
+      if(this.winners.length === 1){      // 최종 우승!
+        const champ = this.winners[0];
+        Sound.win(); Confetti.burst(220);
+        host.overlay(`
+          <h2 style="font-size:2.2rem">🏆 최종 우승!</h2>
+          <img src="${champ.ch.thumbnail}" style="width:150px;height:150px;border:4px solid var(--ink);border-radius:24px;background:#fff">
+          <div class="jua" style="font-size:1.8rem">${esc(champ.ch.charName)}</div>
+          <div>${esc(champ.ch.studentName)} (${esc(champ.ch.studentId)})</div>
+          <div class="bracket">${this.matchLog.map(m => `<div class="match">${m}</div>`).join('')}</div>
+          <button class="btn pink" onclick="window.__replay()">🔄 다시 하기</button>`);
+        this.state = 'done';
+        return;
+      }
+      this.queue = this.winners; this.winners = [];
+    }
+
+    if(this.queue.length === 1){          // 홀수 인원 부전승
+      const bye = this.queue.shift();
+      this.winners.push(bye);
+      this.matchLog.push(`${esc(bye.ch.charName)} — 부전승 진출`);
+      this.nextMatch();
+      return;
+    }
+
+    this.A = this.queue.shift();
+    this.B = this.queue.shift();
+    this.A.curHp = this.A.hp; this.B.curHp = this.B.hp;
+    this.spawnFighters();
+    this.state = 'intro';
+    this.timer = 0;
+    this.turn = 'A';
+    this.log(`⚔️ ${this.A.ch.charName} VS ${this.B.ch.charName}`);
+    Sound.drum();
+  },
+
+  spawnFighters(){
+    const host = this.host, scene = host.scene;
+    /* 이전 파이터 제거 */
+    if(this.objA) scene.remove(this.objA);
+    if(this.objB) scene.remove(this.objB);
+
+    const a = ModelKit.instance(this.A.ch);
+    const b = ModelKit.instance(this.B.ch);
+    a.obj.position.set(-3, 0, 0); a.obj.rotation.y =  Math.PI / 2;  // 서로 마주보기
+    b.obj.position.set( 3, 0, 0); b.obj.rotation.y = -Math.PI / 2;
+    scene.add(a.obj); scene.add(b.obj);
+    if(a.mixer) host.mixers.push(a.mixer);
+    if(b.mixer) host.mixers.push(b.mixer);
+    this.objA = a.obj; this.objB = b.obj;
+
+    /* 체력바 HUD */
+    document.getElementById('battle-hud').style.display = 'flex';
+    this.refreshHUD();
+  },
+
+  refreshHUD(){
+    [['a', this.A], ['b', this.B]].forEach(([k, f]) => {
+      const el = document.getElementById('fighter-' + k);
+      el.querySelector('.fname').textContent = f.ch.charName;
+      const pct = Math.max(0, f.curHp / f.hp * 100);
+      const fill = el.querySelector('.hp-fill');
+      fill.style.width = pct + '%';
+      fill.classList.toggle('low', pct < 35);
+      el.querySelector('.stats').textContent = `체력${f.hp} 공격${f.atk} 방어${f.def} 행운${f.luck}`;
+    });
+  },
+
+  log(msg){
+    const el = document.getElementById('battle-log');
+    el.style.display = 'block';
+    el.textContent = msg;
+  },
+
+  update(dt){
+    if(this.state === 'done' || !this.A) return;
+    this.timer += dt;
+
+    if(this.state === 'intro' && this.timer > 1.4){ this.state = 'fight'; this.timer = 0; }
+
+    /* ---- 자동 전투 : 0.9초마다 번갈아 공격 ---- */
+    if(this.state === 'fight' && this.timer > .9){
+      this.timer = 0;
+      const [atk, def, atkObj, defObj] = this.turn === 'A'
+        ? [this.A, this.B, this.objA, this.objB]
+        : [this.B, this.A, this.objB, this.objA];
+
+      /* 데미지 = 공격력 - 방어력(일부) + 랜덤, 행운으로 크리티컬 */
+      const crit = Math.random() * 100 < atk.luck;
+      let dmg = Math.max(2, atk.atk - def.def * .5 + Math.random() * 6);
+      if(crit) dmg *= 2;
+      def.curHp -= Math.round(dmg);
+      Sound.hit();
+      this.log(crit ? `💥 ${atk.ch.charName}의 크리티컬! ${Math.round(dmg)} 데미지!`
+                    : `👊 ${atk.ch.charName}의 공격! ${Math.round(dmg)} 데미지`);
+
+      /* 돌진 애니메이션 (트윈 대신 간단한 킥) */
+      this.kick = { obj: atkObj, dir: this.turn === 'A' ? 1 : -1, t: 0 };
+      this.shake = { obj: defObj, t: 0 };
+      this.refreshHUD();
+
+      if(def.curHp <= 0){
+        this.state = 'ko'; this.timer = 0;
+        this.winner = atk; this.loser = def;
+        this.matchLog.push(`${esc(atk.ch.charName)} <span class="w">승</span> vs ${esc(def.ch.charName)}`);
+        this.log(`🎉 ${atk.ch.charName} 승리!`);
+        Sound.ok();
+      }else{
+        this.turn = this.turn === 'A' ? 'B' : 'A';
+      }
+    }
+
+    /* 공격/피격 연출 */
+    if(this.kick){
+      this.kick.t += dt * 6;
+      const k = Math.sin(Math.min(this.kick.t, Math.PI));
+      this.kick.obj.position.x = (this.kick.dir === 1 ? -3 : 3) + this.kick.dir * k * 1.6;
+      if(this.kick.t >= Math.PI) this.kick = null;
+    }
+    if(this.shake){
+      this.shake.t += dt * 20;
+      this.shake.obj.position.z = Math.sin(this.shake.t) * .18 * Math.max(0, 1 - this.shake.t / 8);
+      if(this.shake.t > 8){ this.shake.obj.position.z = 0; this.shake = null; }
+    }
+    /* 패자는 쓰러지는 연출 */
+    if(this.state === 'ko'){
+      const loserObj = this.loser === this.A ? this.objA : this.objB;
+      loserObj.rotation.z = Math.min(loserObj.rotation.z + dt * 2, Math.PI / 2);
+      if(this.timer > 1.8){
+        this.winners.push(this.winner);
+        this.A = this.B = null;
+        this.nextMatch();
+      }
+    }
+  },
+
+  dispose(){
+    document.getElementById('battle-hud').style.display = 'none';
+    document.getElementById('battle-log').style.display = 'none';
+    this.A = this.B = null; this.winners = null; this.state = 'done';
+  },
+};
+
+/* ============================================================
+   8-3. TreasureGame — 보물찾기 (랜덤 이동 + 보석 획득 + 점수)
+   ============================================================ */
+const TreasureGame = {
+  DURATION: 30,       // 제한 시간 (초)
+  MAP: 14,            // 맵 절반 크기
+
+  setup(host){
+    this.host = host;
+    const chars = host.participants(2);
+    if(!chars){ UI.show('games'); return; }
+
+    const scene = host.scene;
+    host.addDaylight(scene, 0xD9F3E4);
+
+    /* 작은 맵 : 풀밭 + 테두리 */
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(this.MAP * 2, this.MAP * 2),
+      new THREE.MeshStandardMaterial({ color: 0xA9DC92, roughness: 1 }));
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(this.MAP * 1.05, .18, 8, 4),
+      new THREE.MeshStandardMaterial({ color: 0x8C6A46 }));
+    rim.rotation.x = Math.PI / 2; rim.rotation.z = Math.PI / 4; rim.position.y = .1;
+    scene.add(rim);
+
+    /* ---- 보석 : 인원수에 비례해 생성 (인원 자동 조절) ---- */
+    const gemCount = Math.min(60, chars.length * 3 + 8);
+    const gemGeo = new THREE.OctahedronGeometry(.35);
+    const gemCols = [0xFF6B9D, 0x4DA8FF, 0x5FCB77, 0xFFC93C, 0x9B7EDE];
+    this.gems = [];
+    for(let i = 0; i < gemCount; i++){
+      const gem = new THREE.Mesh(gemGeo, new THREE.MeshStandardMaterial({
+        color: gemCols[i % gemCols.length], emissive: gemCols[i % gemCols.length],
+        emissiveIntensity: .35, roughness: .2 }));
+      gem.position.set((Math.random() - .5) * this.MAP * 1.8, .5,
+                       (Math.random() - .5) * this.MAP * 1.8);
+      gem.userData.spin = Math.random() * 6;
+      scene.add(gem);
+      this.gems.push(gem);
+    }
+
+    /* ---- 헌터(캐릭터) : 랜덤 위치, 랜덤 이동 ---- */
+    this.hunters = chars.map(ch => {
+      const { obj, mixer } = ModelKit.instance(ch);
+      obj.position.set((Math.random() - .5) * this.MAP * 1.6, 0,
+                       (Math.random() - .5) * this.MAP * 1.6);
+      host.scene.add(obj);
+      if(mixer) host.mixers.push(mixer);
+      return { ch, obj, score: 0, dir: Math.random() * Math.PI * 2,
+               speed: 2.6 + Math.random() * 1.6, turnT: 0 };
+    });
+
+    const stage = document.getElementById('game-stage');
+    host.camera = new THREE.PerspectiveCamera(52, stage.clientWidth / stage.clientHeight, .1, 200);
+    host.camera.position.set(0, this.MAP * 1.5, this.MAP * 1.5);
+    host.camera.lookAt(0, 0, 0);
+
+    this.time = this.DURATION;
+    this.state = 'play';
+    Sound.go();
+  },
+
+  update(dt){
+    if(this.state !== 'play') return;
+    const host = this.host;
+    this.time -= dt;
+
+    /* 보석 회전 반짝임 */
+    this.gems.forEach(g => { if(g.visible){ g.rotation.y += dt * 2; g.position.y = .5 + Math.sin(performance.now()/300 + g.userData.spin) * .1; }});
+
+    this.hunters.forEach(h => {
+      /* 랜덤 방향 전환 : 가까운 보석이 있으면 그쪽으로 살짝 끌림 */
+      h.turnT -= dt;
+      if(h.turnT <= 0){
+        h.turnT = .6 + Math.random() * 1.2;
+        let nearest = null, nd = 7;
+        this.gems.forEach(g => {
+          if(!g.visible) return;
+          const d = g.position.distanceTo(h.obj.position);
+          if(d < nd){ nd = d; nearest = g; }
+        });
+        h.dir = nearest
+          ? Math.atan2(nearest.position.x - h.obj.position.x, nearest.position.z - h.obj.position.z)
+            + (Math.random() - .5) * .6
+          : Math.random() * Math.PI * 2;
+      }
+
+      /* 이동 + 맵 밖으로 나가지 않게 반사 */
+      h.obj.position.x += Math.sin(h.dir) * h.speed * dt;
+      h.obj.position.z += Math.cos(h.dir) * h.speed * dt;
+      const lim = this.MAP * .95;
+      if(Math.abs(h.obj.position.x) > lim || Math.abs(h.obj.position.z) > lim){
+        h.dir += Math.PI;
+        h.obj.position.x = THREE.MathUtils.clamp(h.obj.position.x, -lim, lim);
+        h.obj.position.z = THREE.MathUtils.clamp(h.obj.position.z, -lim, lim);
+      }
+      h.obj.rotation.y = h.dir;   // 이동 방향을 바라보기
+      h.obj.position.y = Math.abs(Math.sin(performance.now() / 110 + h.speed)) * .1;
+
+      /* 보석 획득 */
+      this.gems.forEach(g => {
+        if(g.visible && g.position.distanceTo(h.obj.position) < .9){
+          g.visible = false;
+          h.score++;
+          Sound.gem();
+        }
+      });
+    });
+
+    /* HUD : 남은 시간 + 실시간 1위 */
+    const top = [...this.hunters].sort((a, b) => b.score - a.score)[0];
+    host.hud(`<div class="hud-box big">⏱️ ${Math.max(0, Math.ceil(this.time))}초</div>
+              <div class="hud-box">💎 남은 보석 ${this.gems.filter(g => g.visible).length}</div>
+              <div class="hud-box">1위 ${esc(top.ch.charName)} (${top.score})</div>`);
+
+    /* 종료 : 시간 끝 or 보석 소진 */
+    if(this.time <= 0 || this.gems.every(g => !g.visible)){
+      this.state = 'end';
+      Sound.win(); Confetti.burst(160);
+      const rows = [...this.hunters].sort((a, b) => b.score - a.score)
+        .map(h => ({ ch: h.ch, score: '💎 ' + h.score }));
+      host.overlay(host.resultHTML('💎 보물찾기 결과', rows));
+    }
+  },
+
+  dispose(){ this.hunters = []; this.gems = []; },
+};
+
+/* ============================================================
+   9-1. BingoGame — 빙고 (전체 캐릭터 표시 → 랜덤 추첨)
+   학생들은 각자 종이 빙고판(또는 마음속)에 체크!
+   ============================================================ */
+const BingoGame = {
+  start(){
+    const chars = Store.all();
+    if(chars.length < 2){
+      UI.toast('빙고는 캐릭터가 2명 이상 필요해요. 먼저 업로드해 주세요!');
+      Sound.err(); return;
+    }
+    UI.show('pick');
+    document.getElementById('pick-title').textContent = '🎱 캐릭터 빙고';
+    this.pool = [...chars];
+    this.picked = [];
+    this.render();
+  },
+
+  render(){
+    const stage = document.getElementById('pick-stage');
+    const last = this.picked[this.picked.length - 1];
+    stage.innerHTML = `
+      <p class="jua" style="font-size:1.1rem">전체 ${Store.count()}명 중 <b style="color:var(--pink)">${this.picked.length}명</b> 뽑았어요 —
+        자기 빙고판에 나온 캐릭터를 체크하세요!</p>
+      <div class="pick-big" id="bingo-big">
+        ${last ? `<img src="${last.thumbnail}" alt="">` : `<div class="qmark">?</div>`}
+      </div>
+      <div class="pick-name">${last ? esc(last.charName) + ' — ' + esc(last.studentName) : '버튼을 눌러 추첨을 시작하세요'}</div>
+      <button class="btn purple" id="btn-draw" ${this.pool.length === 0 ? 'disabled' : ''}>
+        ${this.pool.length === 0 ? '모든 캐릭터를 뽑았어요!' : '🎲 다음 캐릭터 뽑기'}</button>
+      <div>
+        <p class="jua" style="margin-bottom:8px;opacity:.7">지금까지 나온 캐릭터</p>
+        <div class="picked-strip">
+          ${this.picked.map(c => `<img src="${c.thumbnail}" title="${esc(c.charName)}" alt="${esc(c.charName)}">`).join('')
+            || '<span style="opacity:.5">아직 없어요</span>'}
+        </div>
+      </div>`;
+    const btn = document.getElementById('btn-draw');
+    if(btn && this.pool.length) btn.addEventListener('click', () => this.draw());
+  },
+
+  /* 두구두구 룰렛 연출 후 추첨 */
+  draw(){
+    const btn = document.getElementById('btn-draw');
+    btn.disabled = true;
+    const big = document.getElementById('bingo-big');
+    big.classList.add('spin');
+    Sound.drum();
+    let ticks = 0;
+    const spin = setInterval(() => {
+      const rand = this.pool[(Math.random() * this.pool.length) | 0];
+      big.innerHTML = `<img src="${rand.thumbnail}" alt="">`;
+      Sound.click();
+      if(++ticks >= 12){
+        clearInterval(spin);
+        const idx = (Math.random() * this.pool.length) | 0;
+        const chosen = this.pool.splice(idx, 1)[0];
+        this.picked.push(chosen);
+        Sound.win(); Confetti.burst(70);
+        this.render();
+      }
+    }, 130);
+  },
+};
+
+/* ============================================================
+   9-2. GuessGame — 캐릭터 찾기 (실루엣 + 힌트 → 정답 공개)
+   ============================================================ */
+const GuessGame = {
+  start(){
+    const chars = Store.all();
+    if(chars.length < 2){
+      UI.toast('캐릭터 찾기는 2명 이상 필요해요. 먼저 업로드해 주세요!');
+      Sound.err(); return;
+    }
+    UI.show('pick');
+    document.getElementById('pick-title').textContent = '🕵️ 캐릭터 찾기';
+    this.answer = chars[(Math.random() * chars.length) | 0];
+    this.hintLevel = 0;
+    this.render(false);
+  },
+
+  /* 단계별 힌트 생성 */
+  hints(){
+    const a = this.answer;
+    return [
+      `캐릭터 이름은 <b>${a.charName.length}글자</b>예요.`,
+      `캐릭터 이름은 <b>「${esc(a.charName[0])}」</b>(으)로 시작해요.`,
+      `만든 학생의 학번은 <b>${esc(a.studentId)}</b>이에요.`,
+      `만든 학생 이름은 <b>「${esc(a.studentName[0])}」</b>(으)로 시작해요.`,
+    ];
+  },
+
+  render(revealed){
+    const stage = document.getElementById('pick-stage');
+    const shown = this.hints().slice(0, this.hintLevel);
+    stage.innerHTML = `
+      <p class="jua" style="font-size:1.1rem">검은 그림자의 주인공은 누구일까요? 다 같이 외쳐 보세요!</p>
+      <div class="pick-big silhouette ${revealed ? 'reveal' : ''}">
+        <img src="${this.answer.thumbnail}" alt="비밀 캐릭터">
+      </div>
+      <div class="pick-name">${revealed ? '정답 : ' + esc(this.answer.charName) + ' — ' + esc(this.answer.studentName) : '???'}</div>
+      <div class="hint-box">
+        <div class="jua">💡 힌트 (${shown.length}/${this.hints().length})</div>
+        <ul>${shown.map(h => `<li>${h}</li>`).join('') || '<li style="list-style:none;margin-left:0;opacity:.6">힌트 버튼을 눌러 보세요</li>'}</ul>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        ${revealed ? '' : `<button class="btn blue" id="btn-hint" ${this.hintLevel >= this.hints().length ? 'disabled' : ''}>💡 힌트 보기</button>
+        <button class="btn green" id="btn-reveal">✅ 정답 공개</button>`}
+        ${revealed ? `<button class="btn purple" id="btn-next-guess">🔁 다른 캐릭터로 한 번 더</button>` : ''}
+      </div>`;
+
+    if(!revealed){
+      document.getElementById('btn-hint').addEventListener('click', () => {
+        this.hintLevel++; Sound.click(); this.render(false);
+      });
+      document.getElementById('btn-reveal').addEventListener('click', () => {
+        Sound.win(); Confetti.burst(120); this.render(true);
+      });
+    }else{
+      document.getElementById('btn-next-guess').addEventListener('click', () => { Sound.click(); this.start(); });
+    }
+  },
+};
+
+/* ============================================================
+   게임 시작 라우팅
+   ============================================================ */
+function startGame(key){
+  currentGameKey = key;
+  switch(key){
+    case 'race':       GameHost.launch(Object.create(RaceGame),       '🏁 레이싱'); break;
+    case 'tournament': GameHost.launch(Object.create(TournamentGame), '⚔️ 토너먼트'); break;
+    case 'treasure':   GameHost.launch(Object.create(TreasureGame),   '💎 보물찾기'); break;
+    case 'bingo':      BingoGame.start(); break;
+    case 'guess':      GuessGame.start(); break;
+  }
+}
+document.querySelectorAll('[data-game]').forEach(card =>
+  card.addEventListener('click', () => { Sound.click(); startGame(card.dataset.game); }));
+
+/* ============================================================
+   10. Admin — 관리자 설정 (삭제 / 초기화 / 인원 확인 / 테스트)
+   ============================================================ */
+const Admin = {
+  render(){
+    UI.refreshCounts();
+    const list = document.getElementById('admin-list');
+    const chars = Store.all();
+    list.innerHTML = chars.length === 0
+      ? '<p style="opacity:.6;text-align:center;padding:20px">업로드된 캐릭터가 없습니다.</p>'
+      : chars.map(c => `
+        <div class="admin-row">
+          <img src="${c.thumbnail}" alt="">
+          <div class="who">
+            <div class="cname">${esc(c.charName)}</div>
+            <div class="sname">${esc(c.studentName)} · 학번 ${esc(c.studentId)} · 애니메이션 ${c.hasAnim ? '있음' : '없음'}</div>
+          </div>
+          <button class="btn small pink" data-del="${c.id}">삭제</button>
+        </div>`).join('');
+    list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+      const ch = chars.find(c => c.id === +b.dataset.del);
+      if(confirm(`「${ch.charName}」 캐릭터를 삭제할까요?`)){
+        Store.remove(+b.dataset.del);
+        Sound.err();
+        UI.toast('캐릭터를 삭제했어요.');
+        this.render();
+      }
+    }));
+  },
+
+  init(){
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      if(Store.count() === 0) return UI.toast('삭제할 캐릭터가 없어요.');
+      if(confirm(`정말 전체 초기화할까요? ${Store.count()}명의 캐릭터가 모두 삭제됩니다.`)){
+        Store.clear(); Sound.err(); UI.toast('전체 초기화 완료!');
+        this.render();
+      }
+    });
+
+    /* 테스트 캐릭터 : 수업 전 게임 동작 확인용 */
+    document.getElementById('btn-demo').addEventListener('click', () => {
+      const names = ['번개토끼','솜사탕곰','로켓펭귄','무지개냥','반짝공룡','우주고래','딸기여우','바람이','콩콩이','별사탕'];
+      const cols  = [0xFF6B9D, 0x4DA8FF, 0x5FCB77, 0xFFC93C, 0x9B7EDE, 0xFF8A5C, 0x53C8D8, 0xE96FC0, 0x8BC34A, 0xF06262];
+      let added = 0;
+      for(let i = 0; i < 5 && Store.count() < Store.MAX; i++){
+        const n = Store.count();
+        const gltf = ModelKit.makeDemoGLTF(cols[n % cols.length]);
+        Store.add({
+          studentName: '테스트' + (n + 1),
+          studentId: '10' + String(n + 1).padStart(2, '0'),
+          charName: names[n % names.length] + (n >= names.length ? n : ''),
+          gltf,
+          thumbnail: ModelKit.makeThumbnail(gltf.scene),
+          hasAnim: false,
+        });
+        added++;
+      }
+      Sound.ok();
+      UI.toast(added ? `테스트 캐릭터 ${added}명을 추가했어요!` : '최대 인원에 도달했어요.');
+      this.render();
+    });
+  },
+};
+Admin.init();
+
+/* ============================================================
+   초기화
+   ============================================================ */
+UI.refreshCounts();
+
+/* 실수로 새로고침해 데이터가 사라지는 것을 방지 */
+window.addEventListener('beforeunload', e => {
+  if(Store.count() > 0){ e.preventDefault(); e.returnValue = ''; }
+});
+</script>
+</body>
+</html>
