@@ -281,6 +281,7 @@ h1,h2,h3,.jua{font-family:'Jua',sans-serif;letter-spacing:.5px}
     <button class="btn yellow" data-go="admin"><span class="emoji">⚙️</span>관리자 설정</button>
   </div>
   <div class="home-count" id="home-count"></div>
+  <div id="mode-chip" style="font-family:'Jua',sans-serif;font-size:.85rem;border:2px solid var(--ink);border-radius:999px;padding:6px 16px;max-width:92vw"></div>
 </section>
 
 <!-- ===================== ② 캐릭터 업로드 ===================== -->
@@ -429,6 +430,34 @@ h1,h2,h3,.jua{font-family:'Jua',sans-serif;letter-spacing:.5px}
 <canvas id="confetti-canvas"></canvas>
 <div id="toast"></div>
 
+<!-- ===================== Firebase (실시간 공유 저장소) ===================== -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+/* ============================================================
+   ★★★ 선생님 설정 구역 ★★★
+   학생들이 각자 기기에서 올린 캐릭터를 "모든 화면"에서 공유하려면
+   Firebase(무료)가 필요합니다. 5분 설정:
+
+   ① https://console.firebase.google.com 접속 → "프로젝트 추가" (이름 자유)
+   ② 왼쪽 메뉴 [빌드 → Realtime Database] → "데이터베이스 만들기"
+      → 위치 아무거나 → "테스트 모드"로 시작
+   ③ 프로젝트 설정(톱니바퀴) → 일반 → 내 앱 → 웹 앱(</>) 추가
+      → 나오는 firebaseConfig 값을 아래에 그대로 붙여넣기
+   ④ 이 파일을 웹에 올리고 QR코드로 주소 공유 → 끝!
+
+   ※ 아래를 채우지 않아도 사이트는 동작하지만,
+     "이 기기 저장 모드"가 되어 기기 간 공유는 되지 않습니다.
+     (새로고침해도 유지는 됩니다 — localStorage 사용)
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "여기에_붙여넣기",
+  authDomain: "여기에_붙여넣기",
+  databaseURL: "여기에_붙여넣기",   // ★ Realtime Database URL (꼭 필요!)
+  projectId: "여기에_붙여넣기",
+};
+</script>
+
 <script>
 /* ============================================================
    AI Character Festival (2D) — 메인 스크립트
@@ -448,19 +477,134 @@ h1,h2,h3,.jua{font-family:'Jua',sans-serif;letter-spacing:.5px}
 'use strict';
 
 /* ============================================================
-   1. Store — 캐릭터 데이터 저장소 (메모리 전용, DB 없음)
+   1. Store — 캐릭터 데이터 저장소
+   · Firebase 설정 O : 모든 기기 실시간 공유 (학생 폰 → 교사 화면)
+   · Firebase 설정 X : 이 기기의 localStorage에 저장 (새로고침 유지)
    ============================================================ */
+let DB = null;   // Firebase Realtime Database 참조 (미설정이면 null)
+try{
+  if(typeof FIREBASE_CONFIG !== 'undefined' &&
+     FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.includes('여기에')){
+    firebase.initializeApp(FIREBASE_CONFIG);
+    DB = firebase.database().ref('aicf');   // 데이터 경로: /aicf/characters
+  }
+}catch(e){
+  console.warn('Firebase 초기화 실패 → 이 기기 저장 모드로 동작합니다.', e);
+  DB = null;
+}
+
 const Store = {
   characters: [],   // {id, studentName, studentId, charName, img(HTMLImageElement), thumbnail(dataURL)}
-  nextId: 1,
   MAX: 40,          // 최대 40명 지원
+  LS_KEY: 'aicf-characters-v1',
+  _announce: false, // 초기 로딩 이후 도착한 캐릭터만 토스트로 알림
+  _localSeq: 0,
 
-  add(ch){ ch.id = this.nextId++; this.characters.push(ch); UI.refreshCounts(); },
-  remove(id){ this.characters = this.characters.filter(c => c.id !== id); UI.refreshCounts(); },
-  clear(){ this.characters = []; UI.refreshCounts(); },
   count(){ return this.characters.length; },
   all(){ return this.characters; },
+
+  /* 데이터가 바뀌면 현재 보고 있는 화면을 즉시 갱신 (실시간 반영) */
+  onChange(){
+    UI.refreshCounts();
+    if(UI.current === 'gallery') Gallery.render();
+    if(UI.current === 'admin')   Admin.render();
+  },
+
+  /* dataURL → Image 객체 준비 (게임 캔버스에서 그릴 수 있게) */
+  _hydrate(ch){
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { ch.img = img; resolve(true); };
+      img.onerror = () => resolve(false);   // 깨진 데이터는 버림
+      img.src = ch.thumbnail;
+    });
+  },
+
+  _saveLocal(){
+    try{
+      const plain = this.characters.map(({ img, ...rest }) => rest);
+      localStorage.setItem(this.LS_KEY, JSON.stringify(plain));
+    }catch(e){
+      console.warn('localStorage 저장 실패(용량 초과 가능):', e);
+    }
+  },
+
+  /* 캐릭터 추가 — 온라인이면 DB에 push(리스너가 화면 반영), 아니면 로컬 저장 */
+  async add(data){
+    if(DB){
+      await DB.child('characters').push(data);   // 실패 시 예외 → 업로드 화면에서 처리
+    }else{
+      const ch = { ...data, id: 'L' + Date.now() + '_' + (++this._localSeq) };
+      await this._hydrate(ch);
+      this.characters.push(ch);
+      this._saveLocal();
+      this.onChange();
+    }
+  },
+
+  async remove(id){
+    if(DB){ await DB.child('characters/' + id).remove(); }
+    else{
+      this.characters = this.characters.filter(c => c.id !== id);
+      this._saveLocal();
+      this.onChange();
+    }
+  },
+
+  async clear(){
+    if(DB){ await DB.child('characters').remove(); }
+    else{
+      this.characters = [];
+      this._saveLocal();
+      this.onChange();
+    }
+  },
+
+  /* 시작 시 동기화 : DB 리스너 등록 또는 localStorage 복원 */
+  async initSync(){
+    if(DB){
+      DB.child('characters').on('child_added', async snap => {
+        if(this.characters.some(c => c.id === snap.key)) return;
+        const ch = { id: snap.key, ...snap.val() };
+        if(!ch.thumbnail) return;
+        const ok = await this._hydrate(ch);
+        if(!ok) return;
+        this.characters.push(ch);
+        this.onChange();
+        if(this._announce){
+          Sound.ok();
+          UI.toast(`🎉 「${ch.charName}」 캐릭터 도착! (${ch.studentName})`);
+        }
+      });
+      DB.child('characters').on('child_removed', snap => {
+        this.characters = this.characters.filter(c => c.id !== snap.key);
+        this.onChange();
+      });
+      setTimeout(() => { this._announce = true; }, 2500);  // 첫 로딩분은 조용히
+    }else{
+      try{
+        const saved = JSON.parse(localStorage.getItem(this.LS_KEY) || '[]');
+        for(const ch of saved){
+          if(await this._hydrate(ch)) this.characters.push(ch);
+        }
+      }catch(e){ console.warn('저장된 캐릭터 복원 실패:', e); }
+      this.onChange();
+    }
+  },
 };
+
+/* 업로드 이미지 압축 : 긴 변 420px로 축소 → 공유/저장 용량 절약
+   (투명 배경 유지 — webp 우선, 미지원 브라우저는 png) */
+function compressImage(img, max = 420){
+  const scale = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width  = Math.max(1, Math.round(img.width * scale));
+  c.height = Math.max(1, Math.round(img.height * scale));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  let dataURL = c.toDataURL('image/webp', .85);
+  if(!dataURL.startsWith('data:image/webp')) dataURL = c.toDataURL('image/png');
+  return dataURL;
+}
 
 /* ============================================================
    2. Sound — WebAudio (외부 음원 파일 없이 동작)
@@ -740,10 +884,13 @@ const Upload = {
     this.msg('캐릭터를 불러오는 중이에요…', true);
 
     try{
-      const { dataURL, img } = await Sprite.loadFile(this.file);
-      Store.add({ studentName: sName, studentId: sNum, charName: cName, img, thumbnail: dataURL });
+      const { img } = await Sprite.loadFile(this.file);          // 이미지 해석
+      const thumbnail = compressImage(img);                       // 공유용으로 축소
+      await Store.add({ studentName: sName, studentId: sNum, charName: cName, thumbnail });
       Sound.ok(); Confetti.burst(80);
-      this.msg(`업로드 완료! 「${cName}」 캐릭터가 축제에 참가했어요 🎉`, true);
+      this.msg(DB
+        ? `업로드 완료! 「${cName}」 캐릭터가 모두의 화면에 공유되었어요 🎉`
+        : `업로드 완료! 「${cName}」 캐릭터가 축제에 참가했어요 🎉`, true);
       UI.toast(`${sName} 학생의 캐릭터가 추가되었어요!`);
       /* 폼 초기화 */
       this.file = null;
@@ -755,7 +902,9 @@ const Upload = {
     }catch(err){
       console.error(err);
       Sound.err();
-      this.msg('파일이 잘못되었습니다. 이미지 파일을 다시 확인해 주세요.', false);
+      this.msg(err && err.code   // Firebase 오류는 code가 있음 → 네트워크/권한 문제
+        ? '업로드에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.'
+        : '파일이 잘못되었습니다. 이미지 파일을 다시 확인해 주세요.', false);
     }finally{
       btn.disabled = false;
     }
@@ -781,7 +930,7 @@ const Gallery = {
     grid.querySelectorAll('.g2d-card').forEach(card =>
       card.addEventListener('click', () => {
         Sound.click();
-        const ch = chars.find(x => x.id === +card.dataset.cid);
+        const ch = chars.find(x => String(x.id) === card.dataset.cid);
         if(ch) UI.lightbox(ch);
       }));
   },
@@ -1606,7 +1755,7 @@ const Admin = {
           <button class="btn small pink" data-del="${c.id}">삭제</button>
         </div>`).join('');
     list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
-      const ch = chars.find(c => c.id === +b.dataset.del);
+      const ch = chars.find(c => String(c.id) === b.dataset.del);
       if(ch && confirm(`「${ch.charName}」 캐릭터를 삭제할까요?`)){
         Store.remove(ch.id);
         Sound.err();
@@ -1626,20 +1775,23 @@ const Admin = {
     });
 
     /* 테스트 캐릭터 : 수업 전 게임 동작 확인용 */
-    document.getElementById('btn-demo').addEventListener('click', () => {
+    document.getElementById('btn-demo').addEventListener('click', async () => {
       const names = ['번개토끼','솜사탕곰','로켓펭귄','무지개냥','반짝공룡','우주고래','딸기여우','바람이','콩콩이','별사탕'];
       const cols  = ['#FF6B9D','#4DA8FF','#5FCB77','#FFC93C','#9B7EDE','#FF8A5C','#53C8D8','#E96FC0','#8BC34A','#F06262'];
+      const base = Store.count();
       let added = 0;
-      for(let i = 0; i < 5 && Store.count() < Store.MAX; i++){
-        const n = Store.count();
-        const { dataURL, img } = Sprite.makeDemo(cols[n % cols.length]);
-        Store.add({
-          studentName: '테스트' + (n + 1),
-          studentId: '10' + String(n + 1).padStart(2, '0'),
-          charName: names[n % names.length] + (n >= names.length ? n : ''),
-          img, thumbnail: dataURL,
-        });
-        added++;
+      for(let i = 0; i < 5 && base + i < Store.MAX; i++){
+        const n = base + i;
+        const { dataURL } = Sprite.makeDemo(cols[n % cols.length]);
+        try{
+          await Store.add({
+            studentName: '테스트' + (n + 1),
+            studentId: '10' + String(n + 1).padStart(2, '0'),
+            charName: names[n % names.length] + (n >= names.length ? n : ''),
+            thumbnail: dataURL,
+          });
+          added++;
+        }catch(e){ console.error(e); break; }
       }
       Sound.ok();
       UI.toast(added ? `테스트 캐릭터 ${added}명을 추가했어요!` : '최대 인원에 도달했어요.');
@@ -1650,14 +1802,20 @@ const Admin = {
 Admin.init();
 
 /* ============================================================
-   초기화
+   초기화 — 저장 모드 표시 + 저장소 동기화 시작
    ============================================================ */
+(() => {
+  const chip = document.getElementById('mode-chip');
+  if(DB){
+    chip.textContent = '🟢 온라인 공유 모드 — 모든 기기의 업로드가 실시간으로 모여요';
+    chip.style.background = '#E3F9E8';
+  }else{
+    chip.textContent = '🟡 이 기기 저장 모드 — 새로고침해도 유지되지만 기기 간 공유는 안 돼요 (Firebase 설정으로 공유 가능)';
+    chip.style.background = '#FFF3C4';
+  }
+})();
 UI.refreshCounts();
-
-/* 실수로 새로고침해 데이터가 사라지는 것을 방지 */
-window.addEventListener('beforeunload', e => {
-  if(Store.count() > 0){ e.preventDefault(); e.returnValue = ''; }
-});
+Store.initSync();
 </script>
 </body>
 </html>
