@@ -269,6 +269,26 @@ h1,h2,h3,.jua{font-family:'Jua',sans-serif;letter-spacing:.5px}
 .silhouette img{filter:brightness(0) opacity(.85)}
 .silhouette.reveal img{filter:none;transition:filter .6s}
 
+/* ---------- 2D 갤러리 (WebGL 미지원 기기용 자동 전환) ---------- */
+.gallery2d{
+  height:100%;overflow:auto;padding:16px;background:#CFEBFF;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:14px;align-content:start;
+}
+.g2d-card{
+  background:#fff;border:3px solid var(--ink);border-radius:16px;padding:10px;
+  text-align:center;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s;
+}
+.g2d-card:hover{transform:translateY(-3px)}
+.g2d-card img{width:100%;aspect-ratio:1;object-fit:contain;background:#F4FBFF;border-radius:10px;border:2px solid #E4EEF5}
+.g2d-card .cname{font-family:'Jua',sans-serif;font-size:1.05rem;margin-top:6px}
+.g2d-card .sname{font-size:.8rem;opacity:.7}
+.g2d-lightbox{
+  position:absolute;inset:0;z-index:8;background:rgba(255,248,231,.96);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;
+}
+.g2d-lightbox img{max-width:min(420px,80%);max-height:55%;object-fit:contain;border:4px solid var(--ink);border-radius:20px;background:#fff}
+
 /* ---------- 관리자 ---------- */
 .admin-list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
 .admin-row{
@@ -782,8 +802,14 @@ const ModelKit = {
   makeThumbnail(gltfScene){
     const W = 256, H = 256;
     if(!this._thumbRenderer){
-      this._thumbRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
-      this._thumbRenderer.setSize(W, H);
+      try{
+        this._thumbRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+        this._thumbRenderer.setSize(W, H);
+      }catch(e){
+        const err = new Error('WebGL unavailable');
+        err.webgl = true;    // 업로드 화면에서 원인을 구분해 안내하기 위한 표시
+        throw err;
+      }
     }
     const renderer = this._thumbRenderer;
     const scene = new THREE.Scene();
@@ -912,7 +938,9 @@ const Upload = {
     }catch(err){
       console.error(err);
       Sound.err();
-      this.msg('파일이 잘못되었습니다. 파일을 다시 확인해 주세요.', false);
+      this.msg(err.webgl
+        ? '이 기기에서는 3D(GLB) 처리를 할 수 없어요. 브라우저 하드웨어 가속을 켜거나, 이미지 파일로 업로드해 주세요.'
+        : '파일이 잘못되었습니다. 파일을 다시 확인해 주세요.', false);
     }finally{
       btn.disabled = false;
       setTimeout(() => { pw.style.display = 'none'; pf.style.width = '0%'; }, 600);
@@ -932,13 +960,22 @@ const Gallery = {
 
   start(){
     const holder = document.getElementById('gallery-holder');
-    if(!this.renderer){
-      this.renderer = new THREE.WebGLRenderer({ antialias:true });
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      holder.insertBefore(this.renderer.domElement, holder.firstChild);
-      this.renderer.domElement.addEventListener('pointerdown', e => this.onTap(e));
-      window.addEventListener('resize', () => this.resize());
+
+    /* WebGL 렌더러 생성 시도 — 실패하면 2D 갤러리로 자동 전환 */
+    if(!this.renderer && !this.webglFailed){
+      try{
+        this.renderer = new THREE.WebGLRenderer({ antialias:true });
+        this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+        holder.insertBefore(this.renderer.domElement, holder.firstChild);
+        this.renderer.domElement.addEventListener('pointerdown', e => this.onTap(e));
+        window.addEventListener('resize', () => this.resize());
+      }catch(e){
+        console.warn('WebGL 사용 불가 → 2D 갤러리로 전환합니다.', e);
+        this.webglFailed = true;
+      }
     }
+    if(this.webglFailed){ this.render2D(holder); return; }
+
     this.buildScene();
     this.resize();
     this.running = true;
@@ -946,9 +983,38 @@ const Gallery = {
     this.loop();
   },
 
+  /* ---- 2D 갤러리 : 썸네일 격자 + 클릭 확대 (WebGL 없이 동작) ---- */
+  render2D(holder){
+    const chars = Store.all();
+    holder.innerHTML = chars.length === 0
+      ? `<div class="gallery2d"><p class="jua" style="grid-column:1/-1;text-align:center;opacity:.6;padding:30px">
+           아직 캐릭터가 없어요. 먼저 업로드해 주세요!</p></div>`
+      : `<div class="gallery2d">${chars.map(c => `
+          <div class="g2d-card" data-cid="${c.id}">
+            <img src="${c.thumbnail}" alt="${esc(c.charName)}">
+            <div class="cname">${esc(c.charName)}</div>
+            <div class="sname">${esc(c.studentName)} (${esc(c.studentId)})</div>
+          </div>`).join('')}</div>`;
+
+    holder.querySelectorAll('.g2d-card').forEach(card => card.addEventListener('click', () => {
+      Sound.click();
+      const c = chars.find(x => x.id === +card.dataset.cid);
+      const box = document.createElement('div');
+      box.className = 'g2d-lightbox';
+      box.innerHTML = `
+        <img src="${c.thumbnail}" alt="">
+        <div class="jua" style="font-size:1.6rem">${esc(c.charName)}</div>
+        <div>${esc(c.studentName)} (${esc(c.studentId)})</div>
+        <button class="btn small">닫기</button>`;
+      box.querySelector('button').addEventListener('click', () => box.remove());
+      holder.appendChild(box);
+    }));
+  },
+
   stop(){
     this.running = false;
-    document.getElementById('char-detail').classList.remove('show');
+    const d = document.getElementById('char-detail');
+    if(d) d.classList.remove('show');   // 2D 갤러리 전환 시 요소가 없을 수 있음
   },
 
   resize(){
@@ -1066,12 +1132,17 @@ const GameHost = {
   running:false, game:null, mixers:[],
 
   ensure(){
-    if(this.renderer) return;
-    const stage = document.getElementById('game-stage');
-    this.renderer = new THREE.WebGLRenderer({ antialias:true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    stage.insertBefore(this.renderer.domElement, stage.firstChild);
-    window.addEventListener('resize', () => this.resize());
+    if(this.renderer || this.webglFailed) return;
+    try{
+      const stage = document.getElementById('game-stage');
+      this.renderer = new THREE.WebGLRenderer({ antialias:true });
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      stage.insertBefore(this.renderer.domElement, stage.firstChild);
+      window.addEventListener('resize', () => this.resize());
+    }catch(e){
+      console.warn('WebGL 사용 불가 — 3D 게임을 실행할 수 없습니다.', e);
+      this.webglFailed = true;
+    }
   },
 
   resize(){
@@ -1087,6 +1158,23 @@ const GameHost = {
   /* 새 게임 시작 */
   launch(game, title){
     this.ensure();
+
+    /* WebGL 미지원 → 3D 게임 대신 안내 + 2D 게임으로 유도 */
+    if(this.webglFailed){
+      UI.show('play');
+      document.getElementById('play-title').textContent = title;
+      this.overlay(`
+        <h2 style="font-size:1.8rem">😢 이 기기에서는 3D 게임을 할 수 없어요</h2>
+        <p style="max-width:460px">브라우저에서 WebGL(3D 그래픽)을 사용할 수 없는 상태예요.<br>
+        브라우저를 재시작하고 설정에서 <b>하드웨어 가속</b>을 켜 보세요.</p>
+        <p class="jua">3D 없이도 할 수 있는 게임이 있어요! 👇</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+          <button class="btn purple" onclick="window.__goGame('bingo')">🎱 빙고</button>
+          <button class="btn green" onclick="window.__goGame('guess')">🕵️ 캐릭터 찾기</button>
+        </div>`);
+      return;
+    }
+
     this.stop();
     UI.show('play');
     document.getElementById('play-title').textContent = title;
@@ -1175,6 +1263,7 @@ function esc(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&l
 /* 다시하기 / 나가기 버튼 */
 let currentGameKey = null;
 window.__replay = () => { Sound.click(); startGame(currentGameKey); };
+window.__goGame = key => { Sound.click(); startGame(key); };   // 오버레이 버튼용
 document.getElementById('btn-replay').addEventListener('click', window.__replay);
 document.getElementById('btn-quit-game').addEventListener('click', () => { Sound.click(); UI.show('games'); });
 
