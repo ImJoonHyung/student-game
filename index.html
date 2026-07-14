@@ -353,9 +353,9 @@ h1,h2,h3,.jua{font-family:'Jua',sans-serif;letter-spacing:.5px}
       </div>
       <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="GLB 파일 선택">
         <div class="big">🎁</div>
-        <div class="jua" style="font-size:1.2rem;margin:6px 0">GLB 파일을 여기에 놓거나 눌러서 선택</div>
-        <div style="opacity:.7;font-size:.9rem" id="file-label">.glb 파일만 업로드할 수 있어요 (최대 50MB)</div>
-        <input type="file" id="in-file" accept=".glb,model/gltf-binary" hidden>
+        <div class="jua" style="font-size:1.2rem;margin:6px 0">GLB 또는 이미지 파일을 여기에 놓거나 눌러서 선택</div>
+        <div style="opacity:.7;font-size:.9rem" id="file-label">.glb / png / jpg / webp / gif 가능 (최대 50MB)</div>
+        <input type="file" id="in-file" accept=".glb,model/gltf-binary,image/png,image/jpeg,image/webp,image/gif" hidden>
       </div>
       <div class="progress-wrap" id="progress-wrap">
         <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
@@ -698,6 +698,27 @@ const ModelKit = {
     });
   },
 
+  /* File 객체에서 이미지 로드 → 텍스처 + 썸네일용 dataURL
+     (이미지는 3D 공간에 입간판(빌보드)처럼 세워서 사용) */
+  loadImageFile(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const tex = new THREE.Texture(img);
+          tex.needsUpdate = true;
+          tex.colorSpace = THREE.SRGBColorSpace;
+          resolve({ dataURL: reader.result, tex, aspect: img.width / img.height });
+        };
+        img.onerror = () => reject(new Error('이미지를 해석할 수 없음'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('파일을 읽을 수 없음'));
+      reader.readAsDataURL(file);
+    });
+  },
+
   /* ---- 자동 정규화 ----
      · 크기를 동일하게 (너무 크면 축소, 작으면 확대)
      · 바닥(y=0)에 정확히 위치
@@ -729,8 +750,22 @@ const ModelKit = {
     return wrap;
   },
 
-  /* 게임/전시에서 사용할 복제본 생성 (스킨 메시 안전 복제) */
+  /* 게임/전시에서 사용할 복제본 생성
+     · GLB 캐릭터 : 스킨 메시 안전 복제 + 정규화
+     · 이미지 캐릭터 : 세워진 판(빌보드) 메시 생성 (모델과 같은 키 1.6유닛) */
   instance(ch){
+    if(ch.imageTex){
+      const h = this.TARGET_HEIGHT;
+      const w = Math.min(h * ch.aspect, h * 1.4);   // 너무 옆으로 긴 이미지는 폭 제한
+      const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: ch.imageTex, transparent: true,
+          side: THREE.DoubleSide, alphaTest: .01 }));
+      mesh.position.y = h / 2;                       // 바닥(y=0)에 세우기
+      const wrap = new THREE.Group();
+      wrap.add(mesh);
+      return { obj: wrap, mixer: null };
+    }
     const clone = SkeletonUtils.clone(ch.gltf.scene);
     const wrap = this.normalize(clone);
     let mixer = null;
@@ -829,8 +864,10 @@ const Upload = {
 
     /* ---- 입력 검증 ---- */
     if(!sName || !sNum || !cName) return this.msg('이름, 학번, 캐릭터 이름을 모두 입력해 주세요.', false), Sound.err();
-    if(!this.file)                return this.msg('GLB 파일을 선택해 주세요.', false), Sound.err();
-    if(!/\.glb$/i.test(this.file.name)) return this.msg('파일이 잘못되었습니다. (.glb 파일만 가능해요)', false), Sound.err();
+    if(!this.file)                return this.msg('GLB 또는 이미지 파일을 선택해 주세요.', false), Sound.err();
+    const isGLB = /\.glb$/i.test(this.file.name);
+    const isIMG = /\.(png|jpe?g|webp|gif)$/i.test(this.file.name);
+    if(!isGLB && !isIMG)          return this.msg('파일이 잘못되었습니다. (.glb 또는 png/jpg/webp/gif만 가능해요)', false), Sound.err();
     if(this.file.size > 50 * 1024 * 1024) return this.msg('파일이 너무 커요. 50MB 이하로 줄여 주세요.', false), Sound.err();
     if(Store.count() >= Store.MAX) return this.msg(`최대 ${Store.MAX}명까지만 참가할 수 있어요.`, false), Sound.err();
 
@@ -842,16 +879,26 @@ const Upload = {
     this.msg('캐릭터를 불러오는 중이에요…', true);
 
     try{
-      const gltf = await ModelKit.loadFile(this.file);   // GLB 파싱
-      pf.style.width = '70%';
-      const thumbnail = ModelKit.makeThumbnail(gltf.scene);  // 썸네일 생성
-      pf.style.width = '100%';
-
-      Store.add({
-        studentName: sName, studentId: sNum, charName: cName,
-        gltf, thumbnail,
-        hasAnim: !!(gltf.animations && gltf.animations.length),
-      });
+      if(isGLB){
+        /* GLB : 파싱 → 3D 썸네일 렌더 */
+        const gltf = await ModelKit.loadFile(this.file);
+        pf.style.width = '70%';
+        const thumbnail = ModelKit.makeThumbnail(gltf.scene);
+        pf.style.width = '100%';
+        Store.add({
+          studentName: sName, studentId: sNum, charName: cName,
+          gltf, thumbnail,
+          hasAnim: !!(gltf.animations && gltf.animations.length),
+        });
+      }else{
+        /* 이미지 : 텍스처 생성, 이미지 자체를 썸네일로 사용 */
+        const { dataURL, tex, aspect } = await ModelKit.loadImageFile(this.file);
+        pf.style.width = '100%';
+        Store.add({
+          studentName: sName, studentId: sNum, charName: cName,
+          imageTex: tex, aspect, thumbnail: dataURL, hasAnim: false,
+        });
+      }
 
       Sound.ok(); Confetti.burst(80);
       this.msg(`업로드 완료! 「${cName}」 캐릭터가 축제에 참가했어요 🎉`, true);
@@ -861,11 +908,11 @@ const Upload = {
       this.file = null;
       document.getElementById('in-file').value = '';
       document.getElementById('in-charname').value = '';
-      document.getElementById('file-label').textContent = '.glb 파일만 업로드할 수 있어요 (최대 50MB)';
+      document.getElementById('file-label').textContent = '.glb / png / jpg / webp / gif 가능 (최대 50MB)';
     }catch(err){
       console.error(err);
       Sound.err();
-      this.msg('파일이 잘못되었습니다. GLB 파일을 다시 확인해 주세요.', false);
+      this.msg('파일이 잘못되었습니다. 파일을 다시 확인해 주세요.', false);
     }finally{
       btn.disabled = false;
       setTimeout(() => { pw.style.display = 'none'; pf.style.width = '0%'; }, 600);
@@ -1764,7 +1811,7 @@ const Admin = {
           <img src="${c.thumbnail}" alt="">
           <div class="who">
             <div class="cname">${esc(c.charName)}</div>
-            <div class="sname">${esc(c.studentName)} · 학번 ${esc(c.studentId)} · 애니메이션 ${c.hasAnim ? '있음' : '없음'}</div>
+            <div class="sname">${esc(c.studentName)} · 학번 ${esc(c.studentId)} · ${c.imageTex ? '이미지' : (c.hasAnim ? '3D (애니메이션)' : '3D 모델')}</div>
           </div>
           <button class="btn small pink" data-del="${c.id}">삭제</button>
         </div>`).join('');
